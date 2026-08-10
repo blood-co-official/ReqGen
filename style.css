@@ -205,9 +205,9 @@ textarea {
   background: #050d18;
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 18px;
+  padding: 65px 18px 18px;
   overflow-x: auto;
-}
+    }
 
 .output-box pre {
   color: #dcecff;
