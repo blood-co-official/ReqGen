@@ -1,1 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>ReqGen — Build Requests. Generate Code.</title>
+
+  <meta
+    name="description"
+    content="ReqGen is a developer tool for building API requests and generating ready-to-use code."
+  >
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      Req<span>Gen</span>
+    </div>
+  </header>
+
+
+  <!-- Hero -->
+  <main>
+
+    <section class="hero">
+
+      <h1>
+        Build Requests.
+        <span>Generate Code.</span>
+      </h1>
+
+      <p>
+        Build API requests visually and generate ready-to-use
+        code from your request configuration.
+      </p>
+
+    </section>
+
+
+    <!-- Request Builder -->
+    <section class="builder">
+
+      <div class="card">
+
+        <!-- Method + URL -->
+        <div class="request-row">
+
+          <select class="method">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="PATCH">PATCH</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+
+          <input
+            type="url"
+            class="url-input"
+            placeholder="https://api.example.com/users"
+          >
+
+        </div>
+
+
+        <!-- Headers -->
+        <div class="section-title">
+          Headers
+        </div>
+
+        <div id="headers"></div>
+
+        <div class="actions">
+
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="addHeader"
+          >
+            + Add Header
+          </button>
+
+        </div>
+
+
+        <!-- JSON Body -->
+        <div class="section-title">
+          JSON Body
+        </div>
+
+        <textarea
+          placeholder='{
+  "name": "Nunu",
+  "email": "example@email.com"
+}'></textarea>
+
+
+        <!-- Generate -->
+        <div class="actions">
+
+          <button
+            type="button"
+            class="btn"
+            id="generate"
+          >
+            Generate Request
+          </button>
+
+        </div>
+
+
+        <!-- Output -->
+        <div class="output">
+
+          <div class="section-title">
+            Request Preview
+          </div>
+
+          <div class="output-box">
+
+            <button
+              type="button"
+              class="btn copy-btn"
+            >
+              Copy
+            </button>
+
+            <pre id="output">Your generated request will appear here.</pre>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- Footer -->
+  <footer class="footer">
+    ReqGen — Build Requests. Generate Code.
+    <br>
+    Production by <span>Blood-Co</span>
+  </footer>
+
+
+  <script src="script.js"></script>
+
+</body>
+  </html>
