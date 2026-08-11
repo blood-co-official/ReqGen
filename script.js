@@ -1,141 +1,199 @@
+/* =========================================
+   REQGEN — SCRIPT
+========================================= */
+
 const methodInput = document.querySelector(".method");
 const urlInput = document.querySelector(".url-input");
+
+const headersContainer = document.getElementById("headers");
+const addHeaderBtn = document.getElementById("addHeader");
+
 const bodyInput = document.querySelector("textarea");
 
-const addHeaderBtn = document.querySelector("#addHeader");
-const generateBtn = document.querySelector("#generate");
-const headersContainer = document.querySelector("#headers");
-
-const javascriptOutput = document.querySelector("#javascriptOutput");
-const pythonOutput = document.querySelector("#pythonOutput");
-const curlOutput = document.querySelector("#curlOutput");
-
-let headers = [
-  {
-    key: "Content-Type",
-    value: "application/json"
-  }
+const generateButtons = [
+  document.getElementById("generate"),
+  document.getElementById("generateRequest")
 ];
 
-/* =========================
-   HEADER SYSTEM
-========================= */
+const javascriptOutput = document.getElementById("javascriptOutput");
+const pythonOutput = document.getElementById("pythonOutput");
+const curlOutput = document.getElementById("curlOutput");
+
+const newRequestBtn = document.getElementById("newRequest");
+
+const mobileMenu = document.getElementById("mobileMenu");
+const sidebar = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebarOverlay");
+
+const requestTabs = document.querySelectorAll(".request-tab");
+const codeTabs = document.querySelectorAll(".code-tab");
+
+let headers = [];
+
+
+/* =========================================
+   DEFAULT VALUES
+========================================= */
+
+if (methodInput) {
+  methodInput.value = "GET";
+}
+
+if (urlInput) {
+  urlInput.value = "";
+}
+
+if (bodyInput) {
+  bodyInput.value = "";
+}
+
+
+/* =========================================
+   ADD HEADER
+========================================= */
+
+function addHeader(key = "", value = "") {
+
+  headers.push({
+    key,
+    value
+  });
+
+  renderHeaders();
+}
+
+
+/* =========================================
+   REMOVE HEADER
+========================================= */
+
+function removeHeader(index) {
+
+  headers.splice(index, 1);
+
+  renderHeaders();
+}
+
+
+/* =========================================
+   RENDER HEADERS
+========================================= */
 
 function renderHeaders() {
+
+  if (!headersContainer) return;
+
   headersContainer.innerHTML = "";
 
   headers.forEach((header, index) => {
-    const wrapper = document.createElement("div");
 
-    wrapper.className = "header-item";
+    const row = document.createElement("div");
 
-    wrapper.innerHTML = `
+    row.className = "header-item";
+
+    row.innerHTML = `
       <input
         type="text"
+        class="header-key"
         placeholder="Header name"
         value="${escapeHtml(header.key)}"
         data-index="${index}"
-        data-type="key"
       >
 
       <input
         type="text"
+        class="header-value"
         placeholder="Header value"
         value="${escapeHtml(header.value)}"
         data-index="${index}"
-        data-type="value"
       >
 
       <button
         type="button"
-        class="btn btn-danger"
+        class="btn-danger"
         data-remove="${index}"
       >
         Remove
       </button>
     `;
 
-    headersContainer.appendChild(wrapper);
+    headersContainer.appendChild(row);
   });
+
+
+  document
+    .querySelectorAll(".header-key")
+    .forEach(input => {
+
+      input.addEventListener("input", event => {
+
+        const index =
+          Number(event.target.dataset.index);
+
+        headers[index].key =
+          event.target.value;
+      });
+
+    });
+
+
+  document
+    .querySelectorAll(".header-value")
+    .forEach(input => {
+
+      input.addEventListener("input", event => {
+
+        const index =
+          Number(event.target.dataset.index);
+
+        headers[index].value =
+          event.target.value;
+      });
+
+    });
+
+
+  document
+    .querySelectorAll("[data-remove]")
+    .forEach(button => {
+
+      button.addEventListener("click", () => {
+
+        removeHeader(
+          Number(button.dataset.remove)
+        );
+
+      });
+
+    });
+
 }
 
 
-/* Add header */
+/* =========================================
+   ESCAPE HTML
+========================================= */
 
-addHeaderBtn.addEventListener("click", () => {
-  headers.push({
-    key: "",
-    value: ""
-  });
+function escapeHtml(value) {
 
-  renderHeaders();
-});
-
-
-/* Update headers */
-
-headersContainer.addEventListener("input", (event) => {
-  const index = event.target.dataset.index;
-  const type = event.target.dataset.type;
-
-  if (index === undefined || !type) return;
-
-  headers[index][type] = event.target.value;
-});
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 
-/* Remove header */
-
-headersContainer.addEventListener("click", (event) => {
-  const index = event.target.dataset.remove;
-
-  if (index === undefined) return;
-
-  headers.splice(Number(index), 1);
-
-  renderHeaders();
-});
-
-
-/* =========================
-   GENERATE CODE
-========================= */
-
-generateBtn.addEventListener("click", () => {
-
-  const method = methodInput.value;
-  const url = urlInput.value.trim();
-
-  if (!url) {
-    javascriptOutput.textContent = "Please enter an API URL.";
-    pythonOutput.textContent = "Please enter an API URL.";
-    curlOutput.textContent = "Please enter an API URL.";
-    return;
-  }
-
-  const requestHeaders = getHeaders();
-  const body = getBody();
-
-  javascriptOutput.textContent =
-    generateJavaScript(method, url, requestHeaders, body);
-
-  pythonOutput.textContent =
-    generatePython(method, url, requestHeaders, body);
-
-  curlOutput.textContent =
-    generateCurl(method, url, requestHeaders, body);
-});
-
-
-/* =========================
+/* =========================================
    GET HEADERS
-========================= */
+========================================= */
 
 function getHeaders() {
 
   const result = {};
 
-  headers.forEach((header) => {
+  headers.forEach(header => {
 
     const key = header.key.trim();
 
@@ -149,13 +207,16 @@ function getHeaders() {
 }
 
 
-/* =========================
+/* =========================================
    GET JSON BODY
-========================= */
+========================================= */
 
 function getBody() {
 
-  const value = bodyInput.value.trim();
+  if (!bodyInput) return null;
+
+  const value =
+    bodyInput.value.trim();
 
   if (!value) {
     return null;
@@ -170,42 +231,66 @@ function getBody() {
     return value;
 
   }
+
 }
 
 
-/* =========================
+/* =========================================
+   FORMAT JSON
+========================================= */
+
+function formatJson(value) {
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return JSON.stringify(value, null, 2);
+}
+
+
+/* =========================================
    JAVASCRIPT GENERATOR
-========================= */
+========================================= */
 
-function generateJavaScript(method, url, headers, body) {
+function generateJavaScript(
+  method,
+  url,
+  requestHeaders,
+  body
+) {
 
-  const headerLines = Object.entries(headers)
-    .map(([key, value]) => `    "${key}": "${escapeJs(value)}"`)
-    .join(",\n");
-
-  let code = `fetch("${escapeJs(url)}", {
+  let code = `fetch("${url}", {
   method: "${method}"`;
 
-  if (Object.keys(headers).length > 0) {
+  const headerKeys =
+    Object.keys(requestHeaders);
+
+  if (headerKeys.length > 0) {
 
     code += `,
-  headers: {
-${headerLines}
-  }`;
+  headers: ${JSON.stringify(
+    requestHeaders,
+    null,
+    2
+  )}`;
 
   }
 
-  if (body !== null) {
 
-    const bodyJson =
-      typeof body === "string"
-        ? body
-        : JSON.stringify(body, null, 2);
+  if (
+    body !== null &&
+    ["POST", "PUT", "PATCH"].includes(method)
+  ) {
+
+    const bodyString =
+      JSON.stringify(body, null, 2);
 
     code += `,
-  body: JSON.stringify(${bodyJson})`;
+  body: JSON.stringify(${bodyString})`;
 
   }
+
 
   code += `
 });`;
@@ -214,161 +299,413 @@ ${headerLines}
 }
 
 
-/* =========================
+/* =========================================
    PYTHON GENERATOR
-========================= */
+========================================= */
 
-function generatePython(method, url, headers, body) {
-
-  const pythonMethod = method.toLowerCase();
-
-  let code = `import requests
-
-response = requests.${pythonMethod}(
-    "${escapePython(url)}"`;
-
-  if (Object.keys(headers).length > 0) {
-
-    code += `,
-    headers=${JSON.stringify(headers, null, 4)}`;
-
-  }
-
-  if (body !== null) {
-
-    if (typeof body === "string") {
-
-      code += `,
-    data=${JSON.stringify(body)}`;
-
-    } else {
-
-      code += `,
-    json=${JSON.stringify(body, null, 4)}`;
-
-    }
-
-  }
-
-  code += `
-)`;
-
-  return code;
-}
-
-
-/* =========================
-   CURL GENERATOR
-========================= */
-
-function generateCurl(method, url, headers, body) {
+function generatePython(
+  method,
+  url,
+  requestHeaders,
+  body
+) {
 
   let code =
-    `curl -X ${method} "${escapeCurl(url)}"`;
+`import requests
 
-  Object.entries(headers).forEach(([key, value]) => {
+response = requests.${method.toLowerCase()}(
+    "${url}"`;
 
-    code += ` \\
-  -H "${escapeCurl(key)}: ${escapeCurl(value)}"`;
 
-  });
+  if (Object.keys(requestHeaders).length > 0) {
 
-  if (body !== null) {
-
-    const bodyText =
-      typeof body === "string"
-        ? body
-        : JSON.stringify(body);
-
-    code += ` \\
-  -d '${bodyText.replace(/'/g, "'\\''")}'`;
+    code += `,
+    headers=${JSON.stringify(
+      requestHeaders,
+      null,
+      4
+    ).replace(/^/gm, "    ")}`;
 
   }
+
+
+  if (
+    body !== null &&
+    ["POST", "PUT", "PATCH"].includes(method)
+  ) {
+
+    code += `,
+    json=${JSON.stringify(
+      body,
+      null,
+      4
+    ).replace(/^/gm, "    ")}`;
+
+  }
+
+
+  code += `
+)
+
+print(response.json())`;
 
   return code;
 }
 
 
-/* =========================
-   COPY BUTTONS
-========================= */
+/* =========================================
+   CURL GENERATOR
+========================================= */
 
-document.querySelectorAll(".copy-btn").forEach((button) => {
+function generateCurl(
+  method,
+  url,
+  requestHeaders,
+  body
+) {
 
-  button.addEventListener("click", async () => {
+  let code =
+    `curl -X ${method} "${url}"`;
 
-    const targetId = button.dataset.copy;
-    const target = document.getElementById(targetId);
 
-    if (!target) return;
+  Object.entries(requestHeaders)
+    .forEach(([key, value]) => {
 
-    try {
+      code +=
+        ` \\\n  -H "${key}: ${value}"`;
 
-      await navigator.clipboard.writeText(target.textContent);
+    });
 
-      const oldText = button.textContent;
 
-      button.textContent = "Copied!";
+  if (
+    body !== null &&
+    ["POST", "PUT", "PATCH"].includes(method)
+  ) {
 
-      setTimeout(() => {
-        button.textContent = oldText;
-      }, 1500);
+    const json =
+      JSON.stringify(body);
 
-    } catch {
+    code +=
+      ` \\\n  -d '${json}'`;
 
-      alert("Copy failed. Please copy manually.");
+  }
 
-    }
 
-  });
+  return code;
+}
+
+
+/* =========================================
+   GENERATE ALL CODE
+========================================= */
+
+function generateCode() {
+
+  const method =
+    methodInput?.value || "GET";
+
+  const url =
+    urlInput?.value.trim() || "";
+
+
+  if (!url) {
+
+    alert("Please enter an API URL.");
+
+    return;
+  }
+
+
+  const requestHeaders =
+    getHeaders();
+
+  const body =
+    getBody();
+
+
+  const js =
+    generateJavaScript(
+      method,
+      url,
+      requestHeaders,
+      body
+    );
+
+  const python =
+    generatePython(
+      method,
+      url,
+      requestHeaders,
+      body
+    );
+
+  const curl =
+    generateCurl(
+      method,
+      url,
+      requestHeaders,
+      body
+    );
+
+
+  if (javascriptOutput) {
+    javascriptOutput.textContent = js;
+  }
+
+  if (pythonOutput) {
+    pythonOutput.textContent = python;
+  }
+
+  if (curlOutput) {
+    curlOutput.textContent = curl;
+  }
+
+
+  updateRequestInfo(method);
+}
+
+
+/* =========================================
+   REQUEST INFO
+========================================= */
+
+function updateRequestInfo(method) {
+
+  const methodInfo =
+    document.querySelector(".method-info");
+
+  if (methodInfo) {
+    methodInfo.textContent = method;
+  }
+
+}
+
+
+/* =========================================
+   GENERATE BUTTONS
+========================================= */
+
+generateButtons.forEach(button => {
+
+  if (!button) return;
+
+  button.addEventListener(
+    "click",
+    generateCode
+  );
 
 });
 
 
-/* =========================
-   ESCAPE HELPERS
-========================= */
+/* =========================================
+   ADD HEADER BUTTON
+========================================= */
 
-function escapeHtml(value) {
+if (addHeaderBtn) {
 
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  addHeaderBtn.addEventListener(
+    "click",
+    () => addHeader()
+  );
 
 }
 
 
-function escapeJs(value) {
+/* =========================================
+   NEW REQUEST
+========================================= */
 
-  return String(value)
-    .replaceAll("\\", "\\\\")
-    .replaceAll('"', '\\"')
-    .replaceAll("\n", "\\n");
+if (newRequestBtn) {
+
+  newRequestBtn.addEventListener(
+    "click",
+    () => {
+
+      if (methodInput) {
+        methodInput.value = "GET";
+      }
+
+      if (urlInput) {
+        urlInput.value = "";
+      }
+
+      if (bodyInput) {
+        bodyInput.value = "";
+      }
+
+      headers = [];
+
+      renderHeaders();
+
+      if (javascriptOutput) {
+        javascriptOutput.textContent =
+          "Generate a request to see JavaScript code.";
+      }
+
+      if (pythonOutput) {
+        pythonOutput.textContent =
+          "Generate a request to see Python code.";
+      }
+
+      if (curlOutput) {
+        curlOutput.textContent =
+          "Generate a request to see cURL code.";
+      }
+
+      updateRequestInfo("GET");
+
+    }
+  );
 
 }
 
 
-function escapePython(value) {
+/* =========================================
+   CODE COPY BUTTONS
+========================================= */
 
-  return String(value)
-    .replaceAll("\\", "\\\\")
-    .replaceAll('"', '\\"')
-    .replaceAll("\n", "\\n");
+document
+  .querySelectorAll(".copy-btn")
+  .forEach(button => {
+
+    button.addEventListener(
+      "click",
+      async () => {
+
+        const targetId =
+          button.dataset.copy;
+
+        const target =
+          document.getElementById(targetId);
+
+        if (!target) return;
+
+        try {
+
+          await navigator.clipboard.writeText(
+            target.textContent
+          );
+
+          const oldText =
+            button.textContent;
+
+          button.textContent =
+            "Copied ✓";
+
+          setTimeout(() => {
+
+            button.textContent =
+              oldText;
+
+          }, 1500);
+
+        } catch {
+
+          alert("Copy failed.");
+
+        }
+
+      }
+    );
+
+  });
+
+
+/* =========================================
+   REQUEST TABS
+========================================= */
+
+requestTabs.forEach(tab => {
+
+  tab.addEventListener(
+    "click",
+    () => {
+
+      requestTabs.forEach(item => {
+        item.classList.remove("active");
+      });
+
+      tab.classList.add("active");
+
+    }
+  );
+
+});
+
+
+/* =========================================
+   CODE TABS
+========================================= */
+
+codeTabs.forEach((tab, index) => {
+
+  tab.addEventListener(
+    "click",
+    () => {
+
+      codeTabs.forEach(item => {
+        item.classList.remove("active");
+      });
+
+      tab.classList.add("active");
+
+      const outputs =
+        document.querySelectorAll(".output-box");
+
+      outputs.forEach(output => {
+        output.style.display = "none";
+      });
+
+      if (outputs[index]) {
+        outputs[index].style.display = "block";
+      }
+
+    }
+  );
+
+});
+
+
+/* =========================================
+   MOBILE SIDEBAR
+========================================= */
+
+if (mobileMenu) {
+
+  mobileMenu.addEventListener(
+    "click",
+    () => {
+
+      sidebar?.classList.add("open");
+
+      sidebarOverlay?.classList.add("active");
+
+    }
+  );
 
 }
 
 
-function escapeCurl(value) {
+if (sidebarOverlay) {
 
-  return String(value)
-    .replaceAll('"', '\\"');
+  sidebarOverlay.addEventListener(
+    "click",
+    () => {
+
+      sidebar?.classList.remove("open");
+
+      sidebarOverlay?.classList.remove("active");
+
+    }
+  );
 
 }
 
 
-/* Initial render */
+/* =========================================
+   INITIALIZE
+========================================= */
 
 renderHeaders();
+
+updateRequestInfo("GET");
