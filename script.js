@@ -1,870 +1,1411 @@
 /* =========================================
-   REQGEN V2 — SCRIPT.JS
+   REQGEN V3 — SCRIPT
    Production by BLOOD-CO
 ========================================= */
 
-document.addEventListener("DOMContentLoaded", () => {
+"use strict";
 
-  /* =========================================
-     STORAGE
-  ========================================= */
+/* =========================================
+   STORAGE
+========================================= */
 
-  const HISTORY_KEY = "reqgen_history";
-  const SAVED_KEY = "reqgen_saved";
+const HISTORY_KEY = "reqgen_v3_history";
+const SAVED_KEY = "reqgen_v3_saved";
 
-  let history = JSON.parse(
-    localStorage.getItem(HISTORY_KEY) || "[]"
+let historyData = JSON.parse(
+  localStorage.getItem(HISTORY_KEY) || "[]"
+);
+
+let savedData = JSON.parse(
+  localStorage.getItem(SAVED_KEY) || "[]"
+);
+
+let currentRequest = null;
+let currentLanguage = "javascript";
+
+
+/* =========================================
+   HELPERS
+========================================= */
+
+const $ = (id) => document.getElementById(id);
+
+function saveStorage() {
+  localStorage.setItem(
+    HISTORY_KEY,
+    JSON.stringify(historyData)
   );
 
-  let savedRequests = JSON.parse(
-    localStorage.getItem(SAVED_KEY) || "[]"
+  localStorage.setItem(
+    SAVED_KEY,
+    JSON.stringify(savedData)
   );
+}
 
-  let currentRequest = null;
-
-
-  /* =========================================
-     HELPERS
-  ========================================= */
-
-  const $ = (selector) => document.querySelector(selector);
-
-  const $$ = (selector) => document.querySelectorAll(selector);
-
-  function saveStorage() {
-    localStorage.setItem(
-      HISTORY_KEY,
-      JSON.stringify(history)
-    );
-
-    localStorage.setItem(
-      SAVED_KEY,
-      JSON.stringify(savedRequests)
-    );
-  }
-
-  function escapeHtml(value) {
-    return String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-
-  function getValue(selectors, fallback = "") {
-    for (const selector of selectors) {
-      const element = $(selector);
-
-      if (element && element.value !== undefined) {
-        return element.value;
-      }
-    }
-
-    return fallback;
-  }
+function escapeHTML(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 
-  /* =========================================
-     FORM ELEMENTS
-  ========================================= */
+/* =========================================
+   REQUEST HEADERS
+========================================= */
 
-  const methodInput =
-    $("#method") ||
-    $("#request-method") ||
-    $(".method");
+function addHeader(key = "", value = "") {
 
-  const urlInput =
-    $("#url") ||
-    $("#request-url") ||
-    $(".url-input");
+  const container = $("headersContainer");
 
-  const headersContainer =
-    $("#headers-container") ||
-    $(".headers-container");
+  const row = document.createElement("div");
 
-  const bodyInput =
-    $("#json-body") ||
-    $("#body") ||
-    $(".json-body");
+  row.className = "header-row";
 
-  const outputBox =
-    $("#output") ||
-    $("#output-box") ||
-    $(".output-box pre");
+  row.innerHTML = `
+    <input
+      type="text"
+      class="header-key"
+      placeholder="Header name"
+      value="${escapeHTML(key)}"
+    >
 
-  const generateButton =
-    $("#generate-btn") ||
-    $("#generateRequest") ||
-    $(".generate-btn");
+    <input
+      type="text"
+      class="header-value"
+      placeholder="Header value"
+      value="${escapeHTML(value)}"
+    >
 
-  const saveButton =
-    $("#save-btn") ||
-    $("#saveRequest") ||
-    $(".save-btn");
+    <button
+      type="button"
+      class="remove-header"
+      title="Remove header"
+    >
+      ×
+    </button>
+  `;
 
+  row
+    .querySelector(".remove-header")
+    .addEventListener("click", () => {
+      row.remove();
+    });
 
-  /* =========================================
-     GET METHOD
-  ========================================= */
-
-  function getMethod() {
-    return (
-      methodInput?.value ||
-      "GET"
-    ).toUpperCase();
-  }
+  container.appendChild(row);
+}
 
 
-  /* =========================================
-     GET URL
-  ========================================= */
+function getRequestHeaders() {
 
-  function getUrl() {
-    return (
-      urlInput?.value ||
-      ""
-    ).trim();
-  }
+  const result = {};
 
-
-  /* =========================================
-     HEADERS
-  ========================================= */
-
-  function getHeaders() {
-
-    const headers = {};
-
-    if (!headersContainer) {
-      return headers;
-    }
-
-    const rows =
-      headersContainer.querySelectorAll(
-        ".header-item"
-      );
-
-    rows.forEach(row => {
+  document
+    .querySelectorAll(".header-row")
+    .forEach((row) => {
 
       const key =
-        row.querySelector(
-          ".header-key"
-        )?.value.trim();
+        row
+          .querySelector(".header-key")
+          .value
+          .trim();
 
       const value =
-        row.querySelector(
-          ".header-value"
-        )?.value.trim();
+        row
+          .querySelector(".header-value")
+          .value
+          .trim();
 
-      if (key && value) {
-        headers[key] = value;
+      if (key) {
+        result[key] = value;
       }
     });
 
-    return headers;
+  return result;
+}
+
+
+/* =========================================
+   BODY
+========================================= */
+
+function getParsedBody() {
+
+  const raw = $("requestBody").value.trim();
+
+  if (!raw) {
+    return null;
   }
 
+  try {
 
-  /* =========================================
-     BODY
-  ========================================= */
+    return JSON.parse(raw);
 
-  function getBody() {
-    return (
-      bodyInput?.value ||
-      ""
-    ).trim();
+  } catch {
+
+    return raw;
+  }
+}
+
+
+/* =========================================
+   CODE GENERATORS
+========================================= */
+
+function generateJavaScript(request) {
+
+  let code =
+`fetch(${JSON.stringify(request.url)}, {
+  method: "${request.method}"`;
+
+  if (Object.keys(request.headers).length > 0) {
+
+    code += `,
+  headers: ${JSON.stringify(
+    request.headers,
+    null,
+    2
+  ).replace(/\n/g, "\n  ")}`;
   }
 
-
-  /* =========================================
-     ADD HEADER
-  ========================================= */
-
-  function addHeader(key = "", value = "") {
-
-    if (!headersContainer) {
-      return;
-    }
-
-    const row =
-      document.createElement("div");
-
-    row.className = "header-item";
-
-    row.innerHTML = `
-      <input
-        type="text"
-        class="header-key"
-        placeholder="Header name"
-        value="${escapeHtml(key)}"
-      >
-
-      <input
-        type="text"
-        class="header-value"
-        placeholder="Header value"
-        value="${escapeHtml(value)}"
-      >
-
-      <button
-        type="button"
-        class="btn-danger remove-header"
-      >
-        ×
-      </button>
-    `;
-
-    headersContainer.appendChild(row);
-
-    const removeButton =
-      row.querySelector(
-        ".remove-header"
-      );
-
-    removeButton.addEventListener(
-      "click",
-      () => {
-        row.remove();
-      }
-    );
-  }
-
-
-  /* =========================================
-     ADD HEADER BUTTON
-  ========================================= */
-
-  const addHeaderButton =
-    $("#add-header") ||
-    $("#addHeader") ||
-    $(".add-header");
-
-  if (addHeaderButton) {
-
-    addHeaderButton.addEventListener(
-      "click",
-      () => addHeader()
-    );
-
-  }
-
-
-  /* =========================================
-     PARSE JSON BODY
-  ========================================= */
-
-  function parseBody(body) {
-
-    if (!body) {
-      return null;
-    }
-
-    try {
-      return JSON.parse(body);
-    } catch {
-      return body;
-    }
-
-  }
-
-
-  /* =========================================
-     JAVASCRIPT GENERATOR
-  ========================================= */
-
-  function generateJavaScript(
-    url,
-    method,
-    headers,
-    body
+  if (
+    request.body !== null &&
+    !["GET", "HEAD"].includes(request.method)
   ) {
 
-    let code = "";
+    if (typeof request.body === "string") {
 
-    code += `fetch("${url}", {\n`;
+      code += `,
+  body: ${JSON.stringify(request.body)}`;
 
-    code += `  method: "${method}"`;
+    } else {
 
-    if (Object.keys(headers).length) {
-
-      code += `,\n`;
-
-      code += `  headers: {\n`;
-
-      const entries =
-        Object.entries(headers);
-
-      entries.forEach(
-        ([key, value], index) => {
-
-          code +=
-            `    "${key}": "${value}"`;
-
-          if (
-            index <
-            entries.length - 1
-          ) {
-            code += ",";
-          }
-
-          code += "\n";
-        }
-      );
-
-      code += `  }`;
+      code += `,
+  body: JSON.stringify(${JSON.stringify(
+        request.body,
+        null,
+        2
+      ).replace(/\n/g, "\n  ")})`;
     }
+  }
+
+  code += `
+});`;
+
+  return code;
+}
+
+
+function generatePython(request) {
+
+  const method =
+    request.method.toLowerCase();
+
+  let code =
+`import requests
+
+response = requests.${method}(
+    ${JSON.stringify(request.url)}`;
+
+  if (
+    Object.keys(request.headers).length > 0
+  ) {
+
+    code += `,
+    headers=${JSON.stringify(
+      request.headers,
+      null,
+      4
+    ).replace(/\n/g, "\n    ")}`;
+  }
+
+  if (
+    request.body !== null &&
+    !["get", "head"].includes(method)
+  ) {
+
+    if (typeof request.body === "string") {
+
+      code += `,
+    data=${JSON.stringify(
+        request.body
+      )}`;
+
+    } else {
+
+      code += `,
+    json=${JSON.stringify(
+        request.body,
+        null,
+        4
+      ).replace(/\n/g, "\n    ")}`;
+    }
+  }
+
+  code += `
+)
+
+print(response.status_code)
+print(response.text)`;
+
+  return code;
+}
+
+
+function generateCurl(request) {
+
+  let code =
+`curl -X ${request.method} "${request.url}"`;
+
+  Object.entries(request.headers)
+    .forEach(([key, value]) => {
+
+      code +=
+` \\
+  -H "${key}: ${value}"`;
+    });
+
+  if (
+    request.body !== null &&
+    !["GET", "HEAD"].includes(request.method)
+  ) {
+
+    let bodyText;
+
+    if (typeof request.body === "string") {
+
+      bodyText = request.body;
+
+    } else {
+
+      bodyText = JSON.stringify(
+        request.body
+      );
+    }
+
+    code +=
+` \\
+  -d '${bodyText}'`;
+  }
+
+  return code;
+}
+
+
+/* =========================================
+   GENERATE ALL CODE
+========================================= */
+
+function buildRequestObject() {
+
+  return {
+
+    id: Date.now(),
+
+    method: $("method").value,
+
+    url: $("url").value.trim(),
+
+    headers: getRequestHeaders(),
+
+    body: getParsedBody(),
+
+    createdAt:
+      new Date().toISOString()
+  };
+}
+
+
+function generateAllCode(request) {
+
+  request.javascript =
+    generateJavaScript(request);
+
+  request.python =
+    generatePython(request);
+
+  request.curl =
+    generateCurl(request);
+}
+
+
+/* =========================================
+   SHOW GENERATED CODE
+========================================= */
+
+function showGeneratedCode() {
+
+  if (!currentRequest) {
+    return;
+  }
+
+  const output =
+    $("generatedCode");
+
+  const languageLabel =
+    $("codeLanguage");
+
+  if (currentLanguage === "javascript") {
+
+    output.textContent =
+      currentRequest.javascript;
+
+    languageLabel.textContent =
+      "JavaScript";
+
+  }
+
+  else if (currentLanguage === "python") {
+
+    output.textContent =
+      currentRequest.python;
+
+    languageLabel.textContent =
+      "Python";
+
+  }
+
+  else {
+
+    output.textContent =
+      currentRequest.curl;
+
+    languageLabel.textContent =
+      "cURL";
+  }
+}
+
+
+/* =========================================
+   RESPONSE
+========================================= */
+
+function clearResponse() {
+
+  $("responseStatus").textContent =
+    "NO RESPONSE";
+
+  $("responseStatus").className =
+    "response-status";
+
+  $("statusCode").textContent =
+    "—";
+
+  $("responseTime").textContent =
+    "—";
+
+  $("responseSize").textContent =
+    "—";
+
+  $("responseBody").textContent =
+    "// Send a request to see the response.";
+
+  $("responseHeaders").textContent =
+    "// Response headers will appear here.";
+}
+
+
+function showResponseError(message) {
+
+  $("responseStatus").textContent =
+    "ERROR";
+
+  $("responseStatus").className =
+    "response-status error";
+
+  $("statusCode").textContent =
+    "ERR";
+
+  $("responseTime").textContent =
+    "—";
+
+  $("responseSize").textContent =
+    "—";
+
+  $("responseBody").textContent =
+    message;
+}
+
+
+/* =========================================
+   SEND API REQUEST
+========================================= */
+
+async function sendRequest() {
+
+  const method =
+    $("method").value;
+
+  const url =
+    $("url").value.trim();
+
+  if (!url) {
+
+    alert("Please enter an API URL.");
+
+    $("url").focus();
+
+    return;
+  }
+
+
+  let headers =
+    getRequestHeaders();
+
+  let body =
+    $("requestBody").value.trim();
+
+
+  /* Prevent invalid JSON */
+
+  if (body) {
+
+    try {
+
+      JSON.parse(body);
+
+    } catch {
+
+      if (
+        headers["Content-Type"] &&
+        headers["Content-Type"]
+          .toLowerCase()
+          .includes("application/json")
+      ) {
+
+        alert(
+          "Invalid JSON body. Please check your JSON."
+        );
+
+        return;
+      }
+    }
+  }
+
+
+  const button =
+    $("sendRequestBtn");
+
+  const oldText =
+    button.textContent;
+
+  button.disabled = true;
+
+  button.textContent =
+    "⏳ Sending...";
+
+
+  $("responseStatus").textContent =
+    "REQUESTING";
+
+  $("responseStatus").className =
+    "response-status";
+
+  $("responseBody").textContent =
+    "Sending request...";
+
+  $("responseHeaders").textContent =
+    "Waiting for response...";
+
+
+  const startTime =
+    performance.now();
+
+
+  try {
+
+    const options = {
+
+      method: method,
+
+      headers: headers
+    };
+
+
+    /*
+      Only attach body to methods
+      that normally support a body.
+    */
 
     if (
       body &&
       !["GET", "HEAD"].includes(method)
     ) {
 
-      const parsed =
-        parseBody(body);
-
-      if (
-        parsed !== null &&
-        typeof parsed === "object"
-      ) {
-
-        code += `,\n`;
-
-        code +=
-          `  body: JSON.stringify(`;
-
-        code +=
-          JSON.stringify(
-            parsed,
-            null,
-            2
-          );
-
-        code += `)\n`;
-
-      } else {
-
-        code += `,\n`;
-
-        code +=
-          `  body: ${JSON.stringify(body)}\n`;
-
-      }
-
-    } else {
-
-      code += `\n`;
-
+      options.body = body;
     }
 
-    code += `});`;
 
-    return code;
-  }
+    const response =
+      await fetch(url, options);
 
 
-  /* =========================================
-     PYTHON GENERATOR
-  ========================================= */
+    const endTime =
+      performance.now();
 
-  function generatePython(
-    url,
-    method,
-    headers,
-    body
-  ) {
+    const responseTime =
+      Math.round(
+        endTime - startTime
+      );
 
-    let code =
-      `import requests\n\n`;
 
-    code +=
-      `response = requests.${method.toLowerCase()}(\n`;
+    /* STATUS */
 
-    code +=
-      `    "${url}"`;
+    $("statusCode").textContent =
+      `${response.status} ${response.statusText}`;
+
+
+    $("responseTime").textContent =
+      `${responseTime} ms`;
+
+
+    $("responseStatus").textContent =
+      response.ok
+        ? `${response.status} OK`
+        : `${response.status} ERROR`;
+
+
+    $("responseStatus").className =
+      response.ok
+        ? "response-status success"
+        : "response-status error";
+
 
     /* HEADERS */
 
-    if (
-      Object.keys(headers).length > 0
-    ) {
+    const responseHeaders = {};
 
-      code += `,\n`;
+    response.headers.forEach(
+      (value, key) => {
 
-      code += `    headers={\n`;
+        responseHeaders[key] =
+          value;
+      }
+    );
 
-      const entries =
-        Object.entries(headers);
 
-      entries.forEach(
-        ([key, value], index) => {
-
-          code +=
-            `        "${key}": ${JSON.stringify(value)}`;
-
-          if (
-            index <
-            entries.length - 1
-          ) {
-            code += ",";
-          }
-
-          code += "\n";
-        }
+    $("responseHeaders").textContent =
+      JSON.stringify(
+        responseHeaders,
+        null,
+        2
       );
-
-      code += `    }`;
-    }
 
 
     /* BODY */
 
-    if (
-      body &&
-      !["GET", "HEAD"].includes(method)
-    ) {
+    const text =
+      await response.text();
 
-      const parsed =
-        parseBody(body);
 
-      if (
-        parsed !== null &&
-        typeof parsed === "object"
-      ) {
+    let formattedBody =
+      text;
 
-        const json =
-          JSON.stringify(
-            parsed,
-            null,
-            4
-          );
 
-        const lines =
-          json.split("\n");
+    try {
 
-        code += `,\n`;
+      const json =
+        JSON.parse(text);
 
-        code += `    json=`;
-
-        lines.forEach(
-          (line, index) => {
-
-            if (index === 0) {
-              code += line;
-            } else {
-              code += "\n    " + line;
-            }
-
-          }
+      formattedBody =
+        JSON.stringify(
+          json,
+          null,
+          2
         );
 
-      } else {
+    } catch {
 
-        code +=
-          `,\n    data=${JSON.stringify(body)}`;
-
-      }
-
-    }
-
-    code += `\n)\n\n`;
-
-    code +=
-      `print(response.json())`;
-
-    return code;
-  }
-
-
-  /* =========================================
-     CURL GENERATOR
-  ========================================= */
-
-  function generateCurl(
-    url,
-    method,
-    headers,
-    body
-  ) {
-
-    let code =
-      `curl -X ${method} "${url}"`;
-
-    Object.entries(headers)
-      .forEach(
-        ([key, value]) => {
-
-          code +=
-            ` \\\n  -H "${key}: ${value}"`;
-
-        }
-      );
-
-    if (
-      body &&
-      !["GET", "HEAD"].includes(method)
-    ) {
-
-      const parsed =
-        parseBody(body);
-
-      let bodyString;
-
-      if (
-        parsed !== null &&
-        typeof parsed === "object"
-      ) {
-
-        bodyString =
-          JSON.stringify(parsed);
-
-      } else {
-
-        bodyString = body;
-
-      }
-
-      bodyString =
-        bodyString.replace(
-          /'/g,
-          "'\\''"
-        );
-
-      code +=
-        ` \\\n  -d '${bodyString}'`;
-    }
-
-    return code;
-  }
-
-
-  /* =========================================
-     GENERATE ALL
-  ========================================= */
-
-  function generateRequest() {
-
-    const method = getMethod();
-
-    const url = getUrl();
-
-    const headers = getHeaders();
-
-    const body = getBody();
-
-
-    if (!url) {
-
-      alert(
-        "Please enter an API URL."
-      );
-
-      return;
-
+      /* Not JSON */
     }
 
 
-    currentRequest = {
-
-      id: Date.now(),
-
-      method,
-
-      url,
-
-      headers,
-
-      body,
-
-      createdAt:
-        new Date().toISOString()
-
-    };
+    $("responseBody").textContent =
+      formattedBody;
 
 
-    const javascriptCode =
-      generateJavaScript(
-        url,
-        method,
-        headers,
-        body
-      );
+    /* SIZE */
 
-    const pythonCode =
-      generatePython(
-        url,
-        method,
-        headers,
-        body
-      );
+    const size =
+      new Blob([text]).size;
 
-    const curlCode =
-      generateCurl(
-        url,
-        method,
-        headers,
-        body
-      );
+    $("responseSize").textContent =
+      formatBytes(size);
 
 
-    currentRequest.javascript =
-      javascriptCode;
+    /* SAVE REQUEST TO HISTORY */
 
-    currentRequest.python =
-      pythonCode;
+    const historyRequest =
+      buildRequestObject();
 
-    currentRequest.curl =
-      curlCode;
-
-
-    history.unshift(
-      currentRequest
+    generateAllCode(
+      historyRequest
     );
 
 
-    if (history.length > 30) {
-      history =
-        history.slice(0, 30);
-    }
+    historyRequest.status =
+      response.status;
+
+    historyRequest.responseTime =
+      responseTime;
+
+
+    historyRequest.response =
+      formattedBody;
+
+
+    historyData.unshift(
+      historyRequest
+    );
+
+
+    historyData =
+      historyData.slice(0, 50);
 
 
     saveStorage();
 
-    showOutput(
-      javascriptCode,
-      "JavaScript"
-    );
-
     renderHistory();
 
-  }
+
+  } catch (error) {
+
+    console.error(error);
 
 
-  /* =========================================
-     OUTPUT
-  ========================================= */
-
-  function showOutput(
-    code,
-    language
-  ) {
-
-    if (!outputBox) {
-      return;
-    }
-
-    outputBox.textContent =
-      code;
-
-    outputBox.dataset.language =
-      language;
-
-  }
-
-
-  /* =========================================
-     CODE TABS
-  ========================================= */
-
-  $$(".code-tab")
-    .forEach(tab => {
-
-      tab.addEventListener(
-        "click",
-        () => {
-
-          $$(".code-tab")
-            .forEach(
-              item =>
-                item.classList.remove(
-                  "active"
-                )
-            );
-
-          tab.classList.add(
-            "active"
-          );
-
-          if (!currentRequest) {
-            return;
-          }
-
-          const language =
-            tab.dataset.language ||
-            tab.textContent.trim();
-
-          if (
-            language
-              .toLowerCase()
-              .includes("python")
-          ) {
-
-            showOutput(
-              currentRequest.python,
-              "Python"
-            );
-
-          } else if (
-            language
-              .toLowerCase()
-              .includes("curl")
-          ) {
-
-            showOutput(
-              currentRequest.curl,
-              "cURL"
-            );
-
-          } else {
-
-            showOutput(
-              currentRequest.javascript,
-              "JavaScript"
-            );
-
-          }
-
-        }
-      );
-
-    });
-
-
-  /* =========================================
-     GENERATE BUTTON
-  ========================================= */
-
-  if (generateButton) {
-
-    generateButton.addEventListener(
-      "click",
-      generateRequest
+    showResponseError(
+      `Request failed.\n\n${error.message}\n\nPossible reasons:\n• Invalid URL\n• Network error\n• CORS restriction\n• Target API unavailable`
     );
 
   }
 
 
-  /* =========================================
-     SAVE CURRENT REQUEST
-  ========================================= */
+  button.disabled = false;
 
-  function saveCurrentRequest() {
+  button.textContent =
+    oldText;
+}
 
-    if (!currentRequest) {
+
+/* =========================================
+   FORMAT BYTES
+========================================= */
+
+function formatBytes(bytes) {
+
+  if (bytes === 0) {
+    return "0 B";
+  }
+
+  if (!bytes) {
+    return "—";
+  }
+
+  const units = [
+    "B",
+    "KB",
+    "MB",
+    "GB"
+  ];
+
+  const index =
+    Math.floor(
+      Math.log(bytes) /
+      Math.log(1024)
+    );
+
+  return (
+    parseFloat(
+      (
+        bytes /
+        Math.pow(1024, index)
+      ).toFixed(2)
+    )
+    +
+    " " +
+    units[index]
+  );
+}
+
+
+/* =========================================
+   SAVE REQUEST
+========================================= */
+
+function saveRequest() {
+
+  if (!currentRequest) {
+
+    if (!$("url").value.trim()) {
 
       alert(
-        "Generate a request first."
+        "Enter a URL and generate/test the request first."
       );
 
       return;
-
     }
 
+    currentRequest =
+      buildRequestObject();
 
-    const name =
-      prompt(
-        "Enter a name for this request:",
-        `${currentRequest.method} Request`
-      );
-
-
-    if (!name) {
-      return;
-    }
+    generateAllCode(
+      currentRequest
+    );
+  }
 
 
-    const saved = {
+  const name =
+    prompt(
+      "Enter a name for this request:",
+      `${currentRequest.method} Request`
+    );
 
+
+  if (!name) {
+    return;
+  }
+
+
+  const saved =
+    {
       ...currentRequest,
+
+      id: Date.now(),
 
       name:
         name.trim(),
 
       savedAt:
         new Date().toISOString()
-
     };
 
 
-    savedRequests.unshift(
-      saved
-    );
+  savedData.unshift(
+    saved
+  );
 
 
-    if (
-      savedRequests.length > 50
-    ) {
+  savedData =
+    savedData.slice(0, 50);
 
-      savedRequests =
-        savedRequests.slice(
-          0,
-          50
-        );
 
+  saveStorage();
+
+  renderSaved();
+
+
+  alert(
+    "Request saved successfully!"
+  );
+}
+
+
+/* =========================================
+   LOAD REQUEST
+========================================= */
+
+function loadRequest(request) {
+
+  currentRequest =
+    {
+      ...request
+    };
+
+
+  $("method").value =
+    request.method || "GET";
+
+
+  $("url").value =
+    request.url || "";
+
+
+  $("requestBody").value =
+    typeof request.body === "string"
+      ? request.body
+      : request.body
+        ? JSON.stringify(
+            request.body,
+            null,
+            2
+          )
+        : "";
+
+
+  $("headersContainer").innerHTML =
+    "";
+
+
+  const requestHeaders =
+    request.headers || {};
+
+
+  Object.entries(
+    requestHeaders
+  ).forEach(
+    ([key, value]) => {
+
+      addHeader(
+        key,
+        value
+      );
     }
+  );
 
 
-    saveStorage();
+  if (
+    Object.keys(
+      requestHeaders
+    ).length === 0
+  ) {
 
-    renderSavedRequests();
-
-    alert(
-      "Request saved successfully!"
-    );
-
+    addHeader();
   }
 
 
-  if (saveButton) {
+  generateAllCode(
+    currentRequest
+  );
 
-    saveButton.addEventListener(
-      "click",
-      saveCurrentRequest
-    );
 
+  showGeneratedCode();
+
+  clearResponse();
+
+  openPage("builder");
+}
+
+
+/* =========================================
+   HISTORY
+========================================= */
+
+function renderHistory() {
+
+  const container =
+    $("historyList");
+
+
+  if (!historyData.length) {
+
+    container.innerHTML = `
+      <div class="empty-state">
+
+        <div class="empty-icon">
+          ↺
+        </div>
+
+        <h3>
+          No request history
+        </h3>
+
+        <p>
+          Requests you send will appear here.
+        </p>
+
+      </div>
+    `;
+
+    return;
   }
 
 
-  /* =========================================
-     COPY OUTPUT
-  ========================================= */
+  container.innerHTML =
+    historyData
+      .map(
+        (request, index) => {
 
-  document.addEventListener(
-    "click",
-    async event => {
+          const status =
+            request.status || "—";
 
-      const button =
-        event.target.closest(
-          ".copy-btn"
+          return `
+            <div class="request-item">
+
+              <div
+                class="request-item-main"
+                data-history-index="${index}"
+              >
+
+                <div class="request-item-top">
+
+                  <span class="method-tag">
+                    ${escapeHTML(
+                      request.method
+                    )}
+                  </span>
+
+                  <span class="request-item-name">
+                    ${escapeHTML(
+                      request.method +
+                      " Request"
+                    )}
+                  </span>
+
+                  ${
+                    request.status
+                      ? `
+                        <span
+                          class="method-tag"
+                          style="
+                            color:${
+                              request.status >= 200 &&
+                              request.status < 300
+                                ? "#29d391"
+                                : "#ff6078"
+                            };
+                          "
+                        >
+                          ${status}
+                        </span>
+                      `
+                      : ""
+                  }
+
+                </div>
+
+                <div
+                  class="request-item-url"
+                >
+                  ${escapeHTML(
+                    request.url
+                  )}
+                </div>
+
+              </div>
+
+
+              <button
+                type="button"
+                class="delete-request"
+                data-history-delete="${index}"
+              >
+                ×
+              </button>
+
+            </div>
+          `;
+        }
+      )
+      .join("");
+}
+
+
+/* =========================================
+   SAVED
+========================================= */
+
+function renderSaved() {
+
+  const container =
+    $("savedList");
+
+
+  if (!savedData.length) {
+
+    container.innerHTML = `
+      <div class="empty-state">
+
+        <div class="empty-icon">
+          ★
+        </div>
+
+        <h3>
+          No saved requests
+        </h3>
+
+        <p>
+          Save frequently used requests here.
+        </p>
+
+      </div>
+    `;
+
+    return;
+  }
+
+
+  container.innerHTML =
+    savedData
+      .map(
+        (request, index) => {
+
+          return `
+            <div class="request-item">
+
+              <div
+                class="request-item-main"
+                data-saved-index="${index}"
+              >
+
+                <div class="request-item-top">
+
+                  <span class="method-tag">
+                    ${escapeHTML(
+                      request.method
+                    )}
+                  </span>
+
+                  <span class="request-item-name">
+                    ${escapeHTML(
+                      request.name ||
+                      "Saved Request"
+                    )}
+                  </span>
+
+                </div>
+
+                <div
+                  class="request-item-url"
+                >
+                  ${escapeHTML(
+                    request.url
+                  )}
+                </div>
+
+              </div>
+
+
+              <button
+                type="button"
+                class="delete-request"
+                data-saved-delete="${index}"
+              >
+                ×
+              </button>
+
+            </div>
+          `;
+        }
+      )
+      .join("");
+}
+
+
+/* =========================================
+   PAGE NAVIGATION
+========================================= */
+
+function openPage(page) {
+
+  document
+    .querySelectorAll(".page")
+    .forEach(
+      (element) => {
+
+        element.classList.remove(
+          "active"
         );
-
-      if (!button) {
-        return;
       }
+    );
 
-      if (!outputBox) {
-        return;
+
+  document
+    .querySelectorAll(".nav-item")
+    .forEach(
+      (element) => {
+
+        element.classList.remove(
+          "active"
+        );
       }
+    );
+
+
+  if (page === "builder") {
+
+    $("builderPage")
+      .classList.add("active");
+
+    document
+      .querySelector(
+        '[data-page="builder"]'
+      )
+      .classList.add("active");
+
+
+    $("pageTitle").textContent =
+      "API Request Tester";
+
+
+    $("pageSubtitle").textContent =
+      "Build, test and generate API requests.";
+  }
+
+
+  if (page === "history") {
+
+    $("historyPage")
+      .classList.add("active");
+
+    document
+      .querySelector(
+        '[data-page="history"]'
+      )
+      .classList.add("active");
+
+
+    $("pageTitle").textContent =
+      "Request History";
+
+
+    $("pageSubtitle").textContent =
+      "Your recently generated and tested requests.";
+
+
+    renderHistory();
+  }
+
+
+  if (page === "saved") {
+
+    $("savedPage")
+      .classList.add("active");
+
+    document
+      .querySelector(
+        '[data-page="saved"]'
+      )
+      .classList.add("active");
+
+
+    $("pageTitle").textContent =
+      "Saved Requests";
+
+
+    $("pageSubtitle").textContent =
+      "Your frequently used API requests.";
+
+
+    renderSaved();
+  }
+
+
+  closeMobileSidebar();
+}
+
+
+/* =========================================
+   NEW REQUEST
+========================================= */
+
+function newRequest() {
+
+  $("method").value =
+    "GET";
+
+  $("url").value =
+    "";
+
+  $("requestBody").value =
+    "";
+
+
+  $("headersContainer")
+    .innerHTML = "";
+
+
+  addHeader(
+    "Content-Type",
+    "application/json"
+  );
+
+
+  currentRequest =
+    null;
+
+
+  currentLanguage =
+    "javascript";
+
+
+  document
+    .querySelectorAll(".code-tab")
+    .forEach(
+      (tab) => {
+
+        tab.classList.toggle(
+          "active",
+          tab.dataset.language ===
+            "javascript"
+        );
+      }
+    );
+
+
+  $("generatedCode").textContent =
+    "// Build a request to generate code.";
+
+
+  $("codeLanguage").textContent =
+    "JavaScript";
+
+
+  clearResponse();
+
+  openPage("builder");
+}
+
+
+/* =========================================
+   RESPONSE TABS
+========================================= */
+
+document
+  .querySelectorAll(".response-tab")
+  .forEach(
+    (tab) => {
+
+      tab.addEventListener(
+        "click",
+        () => {
+
+          document
+            .querySelectorAll(
+              ".response-tab"
+            )
+            .forEach(
+              (item) => {
+
+                item.classList.remove(
+                  "active"
+                );
+              }
+            );
+
+
+          document
+            .querySelectorAll(
+              ".response-content"
+            )
+            .forEach(
+              (item) => {
+
+                item.classList.remove(
+                  "active"
+                );
+              }
+            );
+
+
+          tab.classList.add(
+            "active"
+          );
+
+
+          if (
+            tab.dataset.responseTab ===
+            "body"
+          ) {
+
+            $("responseBodyPanel")
+              .classList.add(
+                "active"
+              );
+
+          } else {
+
+            $("responseHeadersPanel")
+              .classList.add(
+                "active"
+              );
+          }
+
+        }
+      );
+    }
+  );
+
+
+/* =========================================
+   CODE TABS
+========================================= */
+
+document
+  .querySelectorAll(".code-tab")
+  .forEach(
+    (tab) => {
+
+      tab.addEventListener(
+        "click",
+        () => {
+
+          currentLanguage =
+            tab.dataset.language;
+
+
+          document
+            .querySelectorAll(
+              ".code-tab"
+            )
+            .forEach(
+              (item) => {
+
+                item.classList.remove(
+                  "active"
+                );
+              }
+            );
+
+
+          tab.classList.add(
+            "active"
+          );
+
+
+          showGeneratedCode();
+        }
+      );
+    }
+  );
+
+
+/* =========================================
+   COPY CODE
+========================================= */
+
+$("copyCodeBtn")
+  .addEventListener(
+    "click",
+    async () => {
 
       const code =
-        outputBox.textContent;
+        $("generatedCode")
+          .textContent;
+
+
+      if (
+        !code ||
+        code.startsWith("// Build")
+      ) {
+
+        return;
+      }
+
 
       try {
 
         await navigator.clipboard
           .writeText(code);
 
-        const oldText =
+
+        const button =
+          $("copyCodeBtn");
+
+        const old =
           button.textContent;
+
 
         button.textContent =
           "Copied!";
 
+
         setTimeout(
           () => {
+
             button.textContent =
-              oldText;
+              old;
+
           },
           1200
         );
@@ -874,717 +1415,416 @@ document.addEventListener("DOMContentLoaded", () => {
         alert(
           "Unable to copy code."
         );
-
       }
-
     }
   );
 
 
-  /* =========================================
-     LOAD REQUEST INTO BUILDER
-  ========================================= */
-
-  function loadRequest(request) {
-
-    if (!request) {
-      return;
-    }
-
-
-    if (methodInput) {
-      methodInput.value =
-        request.method || "GET";
-    }
-
-
-    if (urlInput) {
-      urlInput.value =
-        request.url || "";
-    }
-
-
-    if (bodyInput) {
-      bodyInput.value =
-        request.body || "";
-    }
-
-
-    if (headersContainer) {
-
-      headersContainer.innerHTML =
-        "";
-
-      Object.entries(
-        request.headers || {}
-      ).forEach(
-        ([key, value]) => {
-          addHeader(
-            key,
-            value
-          );
-        }
-      );
-
-    }
-
-
-    currentRequest =
-      request;
-
-
-    showOutput(
-      request.javascript || "",
-      "JavaScript"
-    );
-
-
-    openBuilder();
-
-  }
-
-
-  /* =========================================
-     HISTORY
-  ========================================= */
-
-  function renderHistory() {
-
-    const container =
-      $("#history-list") ||
-      $(".history-list") ||
-      $("#request-history") ||
-      $(".request-list");
-
-    if (!container) {
-      return;
-    }
-
-
-    if (!history.length) {
-
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">↺</div>
-          <h3>No request history</h3>
-          <p>Your generated requests will appear here.</p>
-        </div>
-      `;
-
-      return;
-
-    }
-
-
-    container.innerHTML =
-      history.map(
-        (request, index) => `
-
-        <div
-          class="request-item"
-          data-history-index="${index}"
-        >
-
-          <div
-            class="request-main"
-            data-load-history="${index}"
-          >
-
-            <span class="request-method">
-              ${escapeHtml(request.method)}
-            </span>
-
-            <strong>
-              ${escapeHtml(
-                request.name ||
-                `${request.method} Request`
-              )}
-            </strong>
-
-            <span class="request-url">
-              ${escapeHtml(request.url)}
-            </span>
-
-          </div>
-
-          <button
-            class="delete-btn"
-            data-delete-history="${index}"
-            type="button"
-          >
-            ×
-          </button>
-
-        </div>
-
-      `
-      ).join("");
-
-  }
-
-
-  /* =========================================
-     SAVED REQUESTS
-  ========================================= */
-
-  function renderSavedRequests() {
-
-    const container =
-      $("#saved-list") ||
-      $(".saved-list") ||
-      $("#saved-requests") ||
-      $(".saved-requests-list");
-
-    if (!container) {
-      return;
-    }
-
-
-    if (!savedRequests.length) {
-
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">★</div>
-          <h3>No saved requests</h3>
-          <p>Your frequently used requests will appear here.</p>
-        </div>
-      `;
-
-      return;
-
-    }
-
-
-    container.innerHTML =
-      savedRequests.map(
-        (request, index) => `
-
-        <div
-          class="request-item"
-          data-saved-index="${index}"
-        >
-
-          <div
-            class="request-main"
-            data-load-saved="${index}"
-          >
-
-            <strong>
-              ${escapeHtml(
-                request.name ||
-                "Saved Request"
-              )}
-            </strong>
-
-            <span class="request-method">
-              ${escapeHtml(request.method)}
-            </span>
-
-            <span class="request-url">
-              ${escapeHtml(request.url)}
-            </span>
-
-          </div>
-
-          <button
-            class="delete-btn"
-            data-delete-saved="${index}"
-            type="button"
-          >
-            ×
-          </button>
-
-        </div>
-
-      `
-      ).join("");
-
-  }
-
-
-  /* =========================================
-     HISTORY / SAVED CLICK HANDLER
-  ========================================= */
-
-  document.addEventListener(
+/* =========================================
+   COPY RESPONSE
+========================================= */
+
+$("copyResponseBtn")
+  .addEventListener(
     "click",
-    event => {
+    async () => {
 
-      const historyLoad =
-        event.target.closest(
-          "[data-load-history]"
-        );
+      const response =
+        $("responseBody")
+          .textContent;
 
-      if (historyLoad) {
 
-        const index =
-          Number(
-            historyLoad.dataset
-              .loadHistory
-          );
-
-        loadRequest(
-          history[index]
-        );
-
+      if (!response) {
         return;
-
       }
 
 
-      const savedLoad =
-        event.target.closest(
-          "[data-load-saved]"
+      try {
+
+        await navigator.clipboard
+          .writeText(response);
+
+
+        const button =
+          $("copyResponseBtn");
+
+        const old =
+          button.textContent;
+
+
+        button.textContent =
+          "Copied!";
+
+
+        setTimeout(
+          () => {
+
+            button.textContent =
+              old;
+
+          },
+          1200
         );
 
-      if (savedLoad) {
+      } catch {
 
-        const index =
-          Number(
-            savedLoad.dataset
-              .loadSaved
-          );
-
-        loadRequest(
-          savedRequests[index]
+        alert(
+          "Unable to copy response."
         );
-
-        return;
-
       }
-
-
-      const deleteHistory =
-        event.target.closest(
-          "[data-delete-history]"
-        );
-
-      if (deleteHistory) {
-
-        const index =
-          Number(
-            deleteHistory.dataset
-              .deleteHistory
-          );
-
-        history.splice(
-          index,
-          1
-        );
-
-        saveStorage();
-
-        renderHistory();
-
-        return;
-
-      }
-
-
-      const deleteSaved =
-        event.target.closest(
-          "[data-delete-saved]"
-        );
-
-      if (deleteSaved) {
-
-        const index =
-          Number(
-            deleteSaved.dataset
-              .deleteSaved
-          );
-
-        savedRequests.splice(
-          index,
-          1
-        );
-
-        saveStorage();
-
-        renderSavedRequests();
-
-      }
-
     }
   );
 
 
-  /* =========================================
-     CLEAR HISTORY
-  ========================================= */
+/* =========================================
+   ADD HEADER
+========================================= */
 
-  const clearHistoryButton =
-    $("#clear-history") ||
-    $("#clearHistory") ||
-    $(".clear-history");
+$("addHeaderBtn")
+  .addEventListener(
+    "click",
+    () => {
 
-  if (clearHistoryButton) {
-
-    clearHistoryButton.addEventListener(
-      "click",
-      () => {
-
-        if (!history.length) {
-          return;
-        }
-
-        const confirmed =
-          confirm(
-            "Clear all request history?"
-          );
-
-        if (!confirmed) {
-          return;
-        }
-
-        history = [];
-
-        saveStorage();
-
-        renderHistory();
-
-      }
-    );
-
-  }
+      addHeader();
+    }
+  );
 
 
-  /* =========================================
-     CLEAR SAVED
-  ========================================= */
+/* =========================================
+   SEND
+========================================= */
 
-  const clearSavedButton =
-    $("#clear-saved") ||
-    $("#clearSaved") ||
-    $(".clear-saved");
-
-  if (clearSavedButton) {
-
-    clearSavedButton.addEventListener(
-      "click",
-      () => {
-
-        if (!savedRequests.length) {
-          return;
-        }
-
-        const confirmed =
-          confirm(
-            "Delete all saved requests?"
-          );
-
-        if (!confirmed) {
-          return;
-        }
-
-        savedRequests = [];
-
-        saveStorage();
-
-        renderSavedRequests();
-
-      }
-    );
-
-  }
+$("sendRequestBtn")
+  .addEventListener(
+    "click",
+    sendRequest
+  );
 
 
-  /* =========================================
-     NEW REQUEST
-  ========================================= */
+/* =========================================
+   SAVE
+========================================= */
 
-  const newRequestButtons =
-    $$(".new-request-btn");
+$("saveRequestBtn")
+  .addEventListener(
+    "click",
+    saveRequest
+  );
 
-  newRequestButtons
-    .forEach(button => {
 
-      button.addEventListener(
+/* =========================================
+   NEW REQUEST
+========================================= */
+
+$("newRequestBtn")
+  .addEventListener(
+    "click",
+    newRequest
+  );
+
+
+/* =========================================
+   NAVIGATION
+========================================= */
+
+document
+  .querySelectorAll(".nav-item")
+  .forEach(
+    (item) => {
+
+      item.addEventListener(
         "click",
         () => {
 
-          if (methodInput) {
-            methodInput.value =
-              "GET";
-          }
-
-          if (urlInput) {
-            urlInput.value =
-              "";
-          }
-
-          if (bodyInput) {
-            bodyInput.value =
-              "";
-          }
-
-          if (headersContainer) {
-            headersContainer.innerHTML =
-              "";
-          }
-
-          currentRequest = null;
-
-          showOutput(
-            "// Build a request to generate code.",
-            "JavaScript"
+          openPage(
+            item.dataset.page
           );
-
-          openBuilder();
-
         }
       );
-
-    });
-
-
-  /* =========================================
-     SIDEBAR
-  ========================================= */
-
-  const sidebar =
-    $(".sidebar");
-
-  const menuButton =
-    $(".mobile-menu");
-
-  const overlay =
-    $(".sidebar-overlay");
-
-  function openSidebar() {
-
-    sidebar?.classList.add(
-      "open"
-    );
-
-    overlay?.classList.add(
-      "active"
-    );
-
-  }
-
-  function closeSidebar() {
-
-    sidebar?.classList.remove(
-      "open"
-    );
-
-    overlay?.classList.remove(
-      "active"
-    );
-
-  }
-
-  if (menuButton) {
-
-    menuButton.addEventListener(
-      "click",
-      () => {
-
-        if (
-          sidebar?.classList.contains(
-            "open"
-          )
-        ) {
-          closeSidebar();
-        } else {
-          openSidebar();
-        }
-
-      }
-    );
-
-  }
-
-  overlay?.addEventListener(
-    "click",
-    closeSidebar
+    }
   );
 
 
-  /* =========================================
-     PAGE NAVIGATION
-  ========================================= */
+/* =========================================
+   HISTORY EVENTS
+========================================= */
 
-  function openBuilder() {
-
-    const pages =
-      $$(".page");
-
-    pages.forEach(
-      page =>
-        page.style.display =
-          "none"
-    );
-
-
-    const builder =
-      $("#builder-page") ||
-      $("#request-builder") ||
-      $(".builder-page");
-
-
-    if (builder) {
-      builder.style.display =
-        "block";
-    }
-
-
-    $$(".nav-item")
-      .forEach(
-        item =>
-          item.classList.remove(
-            "active"
-          )
-      );
-
-
-    const builderNav =
-      document.querySelector(
-        '[data-page="builder"]'
-      );
-
-    builderNav?.classList.add(
-      "active"
-    );
-
-
-    closeSidebar();
-
-  }
-
-
-  document.addEventListener(
+$("historyList")
+  .addEventListener(
     "click",
-    event => {
+    (event) => {
 
-      const nav =
+      const deleteButton =
         event.target.closest(
-          ".nav-item"
-        );
-
-      if (!nav) {
-        return;
-      }
-
-
-      const page =
-        nav.dataset.page;
-
-
-      if (!page) {
-        return;
-      }
-
-
-      $$(".nav-item")
-        .forEach(
-          item =>
-            item.classList.remove(
-              "active"
-            )
-        );
-
-      nav.classList.add(
-        "active"
-      );
-
-
-      $$(".page")
-        .forEach(
-          item =>
-            item.style.display =
-              "none"
+          "[data-history-delete]"
         );
 
 
-      if (
-        page === "builder"
-      ) {
+      if (deleteButton) {
 
-        openBuilder();
+        const index =
+          Number(
+            deleteButton.dataset
+              .historyDelete
+          );
 
-      } else if (
-        page === "history"
-      ) {
 
-        const historyPage =
-          $("#history-page");
+        historyData.splice(
+          index,
+          1
+        );
 
-        if (historyPage) {
-          historyPage.style.display =
-            "block";
-        }
+
+        saveStorage();
 
         renderHistory();
 
-        closeSidebar();
-
-      } else if (
-        page === "saved"
-      ) {
-
-        const savedPage =
-          $("#saved-page");
-
-        if (savedPage) {
-          savedPage.style.display =
-            "block";
-        }
-
-        renderSavedRequests();
-
-        closeSidebar();
-
+        return;
       }
 
+
+      const item =
+        event.target.closest(
+          "[data-history-index]"
+        );
+
+
+      if (item) {
+
+        const index =
+          Number(
+            item.dataset
+              .historyIndex
+          );
+
+
+        loadRequest(
+          historyData[index]
+        );
+      }
     }
   );
 
 
-  /* =========================================
-     INITIAL LOAD
-  ========================================= */
+/* =========================================
+   SAVED EVENTS
+========================================= */
 
-  renderHistory();
+$("savedList")
+  .addEventListener(
+    "click",
+    (event) => {
 
-  renderSavedRequests();
+      const deleteButton =
+        event.target.closest(
+          "[data-saved-delete]"
+        );
 
 
-  /* =========================================
-     DEFAULT HEADER
-  ========================================= */
+      if (deleteButton) {
+
+        const index =
+          Number(
+            deleteButton.dataset
+              .savedDelete
+          );
+
+
+        savedData.splice(
+          index,
+          1
+        );
+
+
+        saveStorage();
+
+        renderSaved();
+
+        return;
+      }
+
+
+      const item =
+        event.target.closest(
+          "[data-saved-index]"
+        );
+
+
+      if (item) {
+
+        const index =
+          Number(
+            item.dataset
+              .savedIndex
+          );
+
+
+        loadRequest(
+          savedData[index]
+        );
+      }
+    }
+  );
+
+
+/* =========================================
+   CLEAR HISTORY
+========================================= */
+
+$("clearHistoryBtn")
+  .addEventListener(
+    "click",
+    () => {
+
+      if (
+        !confirm(
+          "Clear all request history?"
+        )
+      ) {
+        return;
+      }
+
+
+      historyData = [];
+
+      saveStorage();
+
+      renderHistory();
+    }
+  );
+
+
+/* =========================================
+   CLEAR SAVED
+========================================= */
+
+$("clearSavedBtn")
+  .addEventListener(
+    "click",
+    () => {
+
+      if (
+        !confirm(
+          "Delete all saved requests?"
+        )
+      ) {
+        return;
+      }
+
+
+      savedData = [];
+
+      saveStorage();
+
+      renderSaved();
+    }
+  );
+
+
+/* =========================================
+   MOBILE SIDEBAR
+========================================= */
+
+function closeMobileSidebar() {
+
+  const sidebar =
+    document.querySelector(
+      ".sidebar"
+    );
+
+  const overlay =
+    $("sidebarOverlay");
+
+
+  sidebar.classList.remove(
+    "open"
+  );
+
+  overlay.classList.remove(
+    "active"
+  );
+}
+
+
+$("mobileMenu")
+  .addEventListener(
+    "click",
+    () => {
+
+      const sidebar =
+        document.querySelector(
+          ".sidebar"
+        );
+
+      const overlay =
+        $("sidebarOverlay");
+
+
+      sidebar.classList.toggle(
+        "open"
+      );
+
+      overlay.classList.toggle(
+        "active"
+      );
+    }
+  );
+
+
+$("sidebarOverlay")
+  .addEventListener(
+    "click",
+    closeMobileSidebar
+  );
+
+
+/* =========================================
+   URL ENTER KEY
+========================================= */
+
+$("url")
+  .addEventListener(
+    "keydown",
+    (event) => {
+
+      if (
+        event.key === "Enter"
+      ) {
+
+        sendRequest();
+      }
+    }
+  );
+
+
+/* =========================================
+   INITIALIZE
+========================================= */
+
+function initialize() {
+
+  /*
+    Default header
+  */
 
   if (
-    headersContainer &&
-    headersContainer.children.length === 0
+    $("headersContainer")
+      .children.length === 0
   ) {
 
     addHeader(
       "Content-Type",
       "application/json"
     );
-
   }
 
 
-  /* =========================================
-     DEFAULT OUTPUT
-  ========================================= */
+  renderHistory();
 
-  if (
-    outputBox &&
-    !outputBox.textContent.trim()
-  ) {
+  renderSaved();
 
-    outputBox.textContent =
-      "// Build a request to generate code.";
-
-  }
+  clearResponse();
+}
 
 
-  console.log(
-    "ReqGen V2 loaded successfully."
-  );
-
-});
+initialize();
