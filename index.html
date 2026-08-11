@@ -2,13 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>ReqGen — Build Requests. Generate Code.</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>ReqGen — API Request Code Generator</title>
 
   <meta
     name="description"
-    content="Build API requests and generate ready-to-use code with ReqGen."
+    content="Build API requests and generate ready-to-use code."
   >
 
   <link rel="stylesheet" href="style.css">
@@ -16,181 +20,1015 @@
 
 <body>
 
-  <header class="header">
-    <div class="logo">
-      Req<span>Gen</span>
-    </div>
-  </header>
+  <!-- =========================
+       APP
+  ========================== -->
+
+  <div class="app">
 
 
-  <main>
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
 
-    <section class="hero">
+    <aside class="sidebar" id="sidebar">
 
-      <h1>
-        Build Requests.
-        <span>Generate Code.</span>
-      </h1>
+      <div class="brand">
 
-      <p>
-        Build API requests visually and generate ready-to-use
-        code for your projects.
-      </p>
+        <div class="brand-icon">
+          RG
+        </div>
 
-    </section>
+        <div>
+          <div class="brand-name">
+            ReqGen
+          </div>
+
+          <div class="brand-version">
+            Developer Tool
+          </div>
+        </div>
+
+      </div>
 
 
-    <section class="builder">
+      <nav class="sidebar-nav">
 
-      <div class="card">
+        <div class="nav-label">
+          WORKSPACE
+        </div>
 
-        <!-- Method + URL -->
-        <div class="request-row">
+        <a href="#" class="nav-item active">
+          <span>⌘</span>
+          Request Builder
+        </a>
 
-          <select class="method">
-            <option value="GET">GET</option>
-            <option value="POST">POST</option>
-            <option value="PUT">PUT</option>
-            <option value="PATCH">PATCH</option>
-            <option value="DELETE">DELETE</option>
-          </select>
+        <a href="#" class="nav-item">
+          <span>◷</span>
+          History
+        </a>
 
-          <input
-            type="url"
-            class="url-input"
-            placeholder="https://api.example.com/users"
-          >
+        <a href="#" class="nav-item">
+          <span>★</span>
+          Saved Requests
+        </a>
+
+
+        <div class="nav-label">
+          TOOLS
+        </div>
+
+        <a href="#" class="nav-item">
+          <span>▣</span>
+          Code Generator
+        </a>
+
+        <a href="#" class="nav-item">
+          <span>?</span>
+          Documentation
+        </a>
+
+      </nav>
+
+
+      <div class="sidebar-bottom">
+
+        <div class="production-card">
+
+          <span>PRODUCTION BY</span>
+
+          <strong>BLOOD-CO</strong>
+
+        </div>
+
+      </div>
+
+    </aside>
+
+
+
+    <!-- =========================
+         MAIN APP
+    ========================== -->
+
+    <div class="main">
+
+
+      <!-- =========================
+           TOPBAR
+      ========================== -->
+
+      <header class="topbar">
+
+        <button
+          class="mobile-menu"
+          id="mobileMenu"
+          type="button"
+        >
+          ☰
+        </button>
+
+
+        <div class="breadcrumb">
+
+          <span>Workspace</span>
+
+          <b>/</b>
+
+          <strong>Request Builder</strong>
 
         </div>
 
 
-        <!-- Headers -->
-        <div class="section-title">
-          Headers
-        </div>
-
-        <div id="headers"></div>
-
-        <div class="actions">
+        <div class="topbar-actions">
 
           <button
+            class="top-btn"
             type="button"
-            class="btn btn-secondary"
-            id="addHeader"
           >
-            + Add Header
+            Documentation
+          </button>
+
+          <button
+            class="top-btn primary-top-btn"
+            type="button"
+            id="newRequest"
+          >
+            + New Request
           </button>
 
         </div>
 
-
-        <!-- JSON Body -->
-        <div class="section-title">
-          JSON Body
-        </div>
-
-        <textarea
-          placeholder='{
-  "name": "Nunu",
-  "email": "example@email.com"
-}'></textarea>
+      </header>
 
 
-        <!-- Generate -->
-        <div class="actions">
 
-          <button
-            type="button"
-            class="btn"
-            id="generate"
-          >
-            Generate Code
-          </button>
+      <!-- =========================
+           CONTENT
+      ========================== -->
 
-        </div>
+      <main class="content">
 
 
-        <!-- Generated Code -->
-        <div class="output">
+        <!-- =========================
+             PAGE HEADER
+        ========================== -->
 
-          <div class="section-title">
-            Generated Code
+        <section class="page-header">
+
+          <div>
+
+            <div class="eyebrow">
+              API DEVELOPMENT TOOL
+            </div>
+
+            <h1>
+              Build Requests.
+              <span>Generate Code.</span>
+            </h1>
+
+            <p>
+              Configure your API request once and get
+              ready-to-use code for your project.
+            </p>
+
           </div>
 
 
-          <!-- JavaScript -->
-          <div class="output-box">
+          <div class="status-card">
 
-            <strong>JavaScript</strong>
+            <span class="status-dot"></span>
+
+            Generator Ready
+
+          </div>
+
+        </section>
+
+
+
+        <!-- =========================
+             REQUEST WORKSPACE
+        ========================== -->
+
+        <section class="workspace-grid">
+
+
+          <!-- =========================
+               REQUEST BUILDER
+          ========================== -->
+
+          <div class="panel request-panel">
+
+            <div class="panel-header">
+
+              <div>
+
+                <span class="panel-kicker">
+                  REQUEST
+                </span>
+
+                <h2>
+                  Request Builder
+                </h2>
+
+              </div>
+
+              <span class="method-badge">
+                API
+              </span>
+
+            </div>
+
+
+
+            <!-- REQUEST URL BAR -->
+
+            <div class="request-bar">
+
+              <select
+                class="method"
+                aria-label="HTTP Method"
+              >
+
+                <option value="GET">
+                  GET
+                </option>
+
+                <option value="POST">
+                  POST
+                </option>
+
+                <option value="PUT">
+                  PUT
+                </option>
+
+                <option value="PATCH">
+                  PATCH
+                </option>
+
+                <option value="DELETE">
+                  DELETE
+                </option>
+
+              </select>
+
+
+              <input
+                type="url"
+                class="url-input"
+                placeholder="https://api.example.com/users"
+                aria-label="API URL"
+              />
+
+
+              <button
+                type="button"
+                class="send-btn"
+                id="generate"
+              >
+                Generate
+              </button>
+
+            </div>
+
+
+
+            <!-- =========================
+                 REQUEST TABS
+            ========================== -->
+
+            <div class="request-tabs">
+
+              <button
+                type="button"
+                class="request-tab active"
+              >
+                Params
+              </button>
+
+              <button
+                type="button"
+                class="request-tab"
+              >
+                Headers
+              </button>
+
+              <button
+                type="button"
+                class="request-tab"
+              >
+                Auth
+              </button>
+
+              <button
+                type="button"
+                class="request-tab"
+              >
+                Body
+              </button>
+
+            </div>
+
+
+
+            <!-- =========================
+                 PARAMS
+            ========================== -->
+
+            <div class="request-section">
+
+              <div class="section-heading">
+
+                <div>
+
+                  <h3>
+                    Query Parameters
+                  </h3>
+
+                  <p>
+                    Add parameters to your request URL.
+                  </p>
+
+                </div>
+
+                <button
+                  type="button"
+                  class="small-btn"
+                >
+                  + Add
+                </button>
+
+              </div>
+
+
+              <div class="empty-state">
+
+                <span class="empty-icon">
+                  ?
+                </span>
+
+                <div>
+
+                  <strong>
+                    No query parameters
+                  </strong>
+
+                  <p>
+                    Add parameters when your API requires them.
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+
+            <!-- =========================
+                 HEADERS
+            ========================== -->
+
+            <div class="request-section headers-section">
+
+              <div class="section-heading">
+
+                <div>
+
+                  <h3>
+                    Headers
+                  </h3>
+
+                  <p>
+                    Define HTTP headers for your request.
+                  </p>
+
+                </div>
+
+                <button
+                  type="button"
+                  class="small-btn"
+                  id="addHeader"
+                >
+                  + Add Header
+                </button>
+
+              </div>
+
+
+              <div id="headers"></div>
+
+            </div>
+
+
+
+            <!-- =========================
+                 AUTH
+            ========================== -->
+
+            <div class="request-section">
+
+              <div class="section-heading">
+
+                <div>
+
+                  <h3>
+                    Authentication
+                  </h3>
+
+                  <p>
+                    Configure authentication for your API.
+                  </p>
+
+                </div>
+
+              </div>
+
+
+              <div class="auth-row">
+
+                <select>
+
+                  <option>
+                    No Authentication
+                  </option>
+
+                  <option>
+                    Bearer Token
+                  </option>
+
+                  <option>
+                    API Key
+                  </option>
+
+                  <option>
+                    Basic Auth
+                  </option>
+
+                </select>
+
+
+                <input
+                  type="text"
+                  placeholder="Token / API Key"
+                />
+
+              </div>
+
+            </div>
+
+
+
+            <!-- =========================
+                 JSON BODY
+            ========================== -->
+
+            <div class="request-section body-section">
+
+              <div class="section-heading">
+
+                <div>
+
+                  <h3>
+                    JSON Body
+                  </h3>
+
+                  <p>
+                    Add a JSON payload to your request.
+                  </p>
+
+                </div>
+
+                <span class="format-badge">
+                  JSON
+                </span>
+
+              </div>
+
+
+              <textarea
+                placeholder='{
+  "name": "Nunu",
+  "email": "example@email.com"
+}'
+                aria-label="JSON request body"
+              ></textarea>
+
+            </div>
+
+
+
+            <!-- =========================
+                 GENERATE BUTTON
+            ========================== -->
+
+            <div class="generate-area">
+
+              <button
+                type="button"
+                class="generate-main-btn"
+                id="generateRequest"
+              >
+
+                <span>
+                  ⚡
+                </span>
+
+                Generate Code
+
+              </button>
+
+              <p>
+                Turn your request into production-ready code.
+              </p>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- =========================
+               RIGHT SIDE
+          ========================== -->
+
+          <aside class="side-column">
+
+
+            <!-- QUICK INFO -->
+
+            <div class="panel info-panel">
+
+              <div class="panel-header compact">
+
+                <div>
+
+                  <span class="panel-kicker">
+                    QUICK INFO
+                  </span>
+
+                  <h2>
+                    Request
+                  </h2>
+
+                </div>
+
+              </div>
+
+
+              <div class="info-list">
+
+                <div class="info-row">
+
+                  <span>
+                    Method
+                  </span>
+
+                  <strong class="method-info">
+                    GET
+                  </strong>
+
+                </div>
+
+
+                <div class="info-row">
+
+                  <span>
+                    Type
+                  </span>
+
+                  <strong>
+                    HTTP
+                  </strong>
+
+                </div>
+
+
+                <div class="info-row">
+
+                  <span>
+                    Body
+                  </span>
+
+                  <strong>
+                    JSON
+                  </strong>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+
+            <!-- SUPPORTED LANGUAGES -->
+
+            <div class="panel languages-panel">
+
+              <div class="panel-header compact">
+
+                <div>
+
+                  <span class="panel-kicker">
+                    OUTPUT
+                  </span>
+
+                  <h2>
+                    Languages
+                  </h2>
+
+                </div>
+
+              </div>
+
+
+              <div class="language-list">
+
+                <div class="language-item active">
+
+                  <span class="language-icon">
+                    JS
+                  </span>
+
+                  <div>
+
+                    <strong>
+                      JavaScript
+                    </strong>
+
+                    <small>
+                      Fetch API
+                    </small>
+
+                  </div>
+
+                </div>
+
+
+                <div class="language-item">
+
+                  <span class="language-icon python">
+                    Py
+                  </span>
+
+                  <div>
+
+                    <strong>
+                      Python
+                    </strong>
+
+                    <small>
+                      Requests
+                    </small>
+
+                  </div>
+
+                </div>
+
+
+                <div class="language-item">
+
+                  <span class="language-icon curl">
+                    &gt;_
+                  </span>
+
+                  <div>
+
+                    <strong>
+                      cURL
+                    </strong>
+
+                    <small>
+                      Terminal
+                    </small>
+
+                  </div>
+
+                </div>
+
+
+                <div class="language-item">
+
+                  <span class="language-icon php">
+                    PHP
+                  </span>
+
+                  <div>
+
+                    <strong>
+                      PHP
+                    </strong>
+
+                    <small>
+                      cURL
+                    </small>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </aside>
+
+        </section>
+
+
+
+        <!-- =========================
+             GENERATED CODE
+        ========================== -->
+
+        <section class="panel generated-panel">
+
+          <div class="generated-header">
+
+            <div>
+
+              <span class="panel-kicker">
+                GENERATED OUTPUT
+              </span>
+
+              <h2>
+                Ready-to-use code
+              </h2>
+
+              <p>
+                Copy the generated snippet directly into your project.
+              </p>
+
+            </div>
+
+
+            <div class="generated-actions">
+
+              <span class="live-indicator">
+                <i></i>
+                Ready
+              </span>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- LANGUAGE TABS -->
+
+          <div class="code-tabs">
 
             <button
               type="button"
-              class="btn copy-btn"
-              data-copy="javascriptOutput"
+              class="code-tab active"
             >
-              Copy
+              JavaScript
             </button>
+
+            <button
+              type="button"
+              class="code-tab"
+            >
+              Python
+            </button>
+
+            <button
+              type="button"
+              class="code-tab"
+            >
+              cURL
+            </button>
+
+            <button
+              type="button"
+              class="code-tab"
+            >
+              PHP
+            </button>
+
+          </div>
+
+
+
+          <!-- =========================
+               JAVASCRIPT OUTPUT
+          ========================== -->
+
+          <div class="output-box">
+
+            <div class="code-topbar">
+
+              <div class="code-dots">
+
+                <i></i>
+                <i></i>
+                <i></i>
+
+              </div>
+
+              <strong>
+                JavaScript
+              </strong>
+
+              <button
+                type="button"
+                class="copy-btn"
+                data-copy="javascriptOutput"
+              >
+                Copy
+              </button>
+
+            </div>
+
 
             <pre id="javascriptOutput">Generate a request to see JavaScript code.</pre>
 
           </div>
 
 
-          <!-- Python -->
+
+          <!-- =========================
+               PYTHON OUTPUT
+          ========================== -->
+
           <div class="output-box">
 
-            <strong>Python</strong>
+            <div class="code-topbar">
 
-            <button
-              type="button"
-              class="btn copy-btn"
-              data-copy="pythonOutput"
-            >
-              Copy
-            </button>
+              <div class="code-dots">
+
+                <i></i>
+                <i></i>
+                <i></i>
+
+              </div>
+
+              <strong>
+                Python
+              </strong>
+
+              <button
+                type="button"
+                class="copy-btn"
+                data-copy="pythonOutput"
+              >
+                Copy
+              </button>
+
+            </div>
+
 
             <pre id="pythonOutput">Generate a request to see Python code.</pre>
 
           </div>
 
 
-          <!-- cURL -->
+
+          <!-- =========================
+               CURL OUTPUT
+          ========================== -->
+
           <div class="output-box">
 
-            <strong>cURL</strong>
+            <div class="code-topbar">
 
-            <button
-              type="button"
-              class="btn copy-btn"
-              data-copy="curlOutput"
-            >
-              Copy
-            </button>
+              <div class="code-dots">
+
+                <i></i>
+                <i></i>
+                <i></i>
+
+              </div>
+
+              <strong>
+                cURL
+              </strong>
+
+              <button
+                type="button"
+                class="copy-btn"
+                data-copy="curlOutput"
+              >
+                Copy
+              </button>
+
+            </div>
+
 
             <pre id="curlOutput">Generate a request to see cURL code.</pre>
 
           </div>
 
-        </div>
-
-      </div>
-
-    </section>
-
-  </main>
+        </section>
 
 
-  <footer class="footer">
 
-    ReqGen — Build Requests. Generate Code.
-    <br>
+        <!-- =========================
+             FEATURES
+        ========================== -->
 
-    Production by <span>Blood-Co</span>
+        <section class="feature-grid">
 
-  </footer>
+          <div class="feature-card">
+
+            <span>
+              ⚡
+            </span>
+
+            <h3>
+              Fast Generation
+            </h3>
+
+            <p>
+              Build your request once and generate code instantly.
+            </p>
+
+          </div>
+
+
+          <div class="feature-card">
+
+            <span>
+              ◈
+            </span>
+
+            <h3>
+              Multiple Languages
+            </h3>
+
+            <p>
+              Generate snippets for different development environments.
+            </p>
+
+          </div>
+
+
+          <div class="feature-card">
+
+            <span>
+              ✓
+            </span>
+
+            <h3>
+              Developer Friendly
+            </h3>
+
+            <p>
+              Clean output designed to be copied directly into projects.
+            </p>
+
+          </div>
+
+        </section>
+
+      </main>
+
+
+
+      <!-- =========================
+           FOOTER
+      ========================== -->
+
+      <footer class="footer">
+
+        <span>
+          ReqGen
+        </span>
+
+        <b>•</b>
+
+        Build Requests. Generate Code.
+
+        <b>•</b>
+
+        Production by
+        <strong>
+          BLOOD-CO
+        </strong>
+
+      </footer>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- =========================
+       MOBILE SIDEBAR OVERLAY
+  ========================== -->
+
+  <div
+    class="sidebar-overlay"
+    id="sidebarOverlay"
+  ></div>
+
 
 
   <script src="script.js"></script>
 
 </body>
-</html>
+                  </html>
