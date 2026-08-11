@@ -8,7 +8,7 @@
 
   <meta
     name="description"
-    content="ReqGen is a developer tool for building API requests and generating ready-to-use code."
+    content="Build API requests and generate ready-to-use code with ReqGen."
   >
 
   <link rel="stylesheet" href="style.css">
@@ -16,7 +16,6 @@
 
 <body>
 
-  <!-- Header -->
   <header class="header">
     <div class="logo">
       Req<span>Gen</span>
@@ -24,7 +23,6 @@
   </header>
 
 
-  <!-- Hero -->
   <main>
 
     <section class="hero">
@@ -36,13 +34,12 @@
 
       <p>
         Build API requests visually and generate ready-to-use
-        code from your request configuration.
+        code for your projects.
       </p>
 
     </section>
 
 
-    <!-- Request Builder -->
     <section class="builder">
 
       <div class="card">
@@ -107,29 +104,70 @@
             class="btn"
             id="generate"
           >
-            Generate Request
+            Generate Code
           </button>
 
         </div>
 
 
-        <!-- Output -->
+        <!-- Generated Code -->
         <div class="output">
 
           <div class="section-title">
-            Request Preview
+            Generated Code
           </div>
 
+
+          <!-- JavaScript -->
           <div class="output-box">
+
+            <strong>JavaScript</strong>
 
             <button
               type="button"
               class="btn copy-btn"
+              data-copy="javascriptOutput"
             >
               Copy
             </button>
 
-            <pre id="output">Your generated request will appear here.</pre>
+            <pre id="javascriptOutput">Generate a request to see JavaScript code.</pre>
+
+          </div>
+
+
+          <!-- Python -->
+          <div class="output-box">
+
+            <strong>Python</strong>
+
+            <button
+              type="button"
+              class="btn copy-btn"
+              data-copy="pythonOutput"
+            >
+              Copy
+            </button>
+
+            <pre id="pythonOutput">Generate a request to see Python code.</pre>
+
+          </div>
+
+
+          <!-- cURL -->
+          <div class="output-box">
+
+            <strong>cURL</strong>
+
+            <button
+              type="button"
+              class="btn copy-btn"
+              data-copy="curlOutput"
+            >
+              Copy
+            </button>
+
+            <pre id="curlOutput">Generate a request to see cURL code.</pre>
 
           </div>
 
@@ -142,15 +180,17 @@
   </main>
 
 
-  <!-- Footer -->
   <footer class="footer">
+
     ReqGen — Build Requests. Generate Code.
     <br>
+
     Production by <span>Blood-Co</span>
+
   </footer>
 
 
   <script src="script.js"></script>
 
 </body>
-  </html>
+</html>
