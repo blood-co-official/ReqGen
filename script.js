@@ -4,34 +4,29 @@ const bodyInput = document.querySelector("textarea");
 
 const addHeaderBtn = document.querySelector("#addHeader");
 const generateBtn = document.querySelector("#generate");
-const copyBtn = document.querySelector(".copy-btn");
-
 const headersContainer = document.querySelector("#headers");
-const output = document.querySelector("#output");
 
-let headers = [];
+const javascriptOutput = document.querySelector("#javascriptOutput");
+const pythonOutput = document.querySelector("#pythonOutput");
+const curlOutput = document.querySelector("#curlOutput");
 
-// Add a new header
-if (addHeaderBtn) {
-  addHeaderBtn.addEventListener("click", () => {
-    const header = {
-      key: "",
-      value: ""
-    };
+let headers = [
+  {
+    key: "Content-Type",
+    value: "application/json"
+  }
+];
 
-    headers.push(header);
-    renderHeaders();
-  });
-}
+/* =========================
+   HEADER SYSTEM
+========================= */
 
-// Render headers
 function renderHeaders() {
-  if (!headersContainer) return;
-
   headersContainer.innerHTML = "";
 
   headers.forEach((header, index) => {
     const wrapper = document.createElement("div");
+
     wrapper.className = "header-item";
 
     wrapper.innerHTML = `
@@ -52,8 +47,8 @@ function renderHeaders() {
       >
 
       <button
-        class="btn btn-danger"
         type="button"
+        class="btn btn-danger"
         data-remove="${index}"
       >
         Remove
@@ -64,142 +59,316 @@ function renderHeaders() {
   });
 }
 
-// Update header values
-if (headersContainer) {
-  headersContainer.addEventListener("input", (event) => {
-    const index = event.target.dataset.index;
-    const type = event.target.dataset.type;
 
-    if (index === undefined || !type) return;
+/* Add header */
 
-    headers[index][type] = event.target.value;
+addHeaderBtn.addEventListener("click", () => {
+  headers.push({
+    key: "",
+    value: ""
   });
 
-  headersContainer.addEventListener("click", (event) => {
-    const removeIndex = event.target.dataset.remove;
+  renderHeaders();
+});
 
-    if (removeIndex === undefined) return;
 
-    headers.splice(Number(removeIndex), 1);
-    renderHeaders();
-  });
-}
+/* Update headers */
 
-// Generate request
-if (generateBtn) {
-  generateBtn.addEventListener("click", () => {
-    const method = methodInput?.value || "GET";
-    const url = urlInput?.value.trim() || "";
+headersContainer.addEventListener("input", (event) => {
+  const index = event.target.dataset.index;
+  const type = event.target.dataset.type;
 
-    if (!url) {
-      showOutput("Please enter an API URL first.");
-      return;
-    }
+  if (index === undefined || !type) return;
 
-    const request = {
-      method,
-      url,
-      headers: getHeaders(),
-      body: getBody()
-    };
+  headers[index][type] = event.target.value;
+});
 
-    showOutput(generatePreview(request));
-  });
-}
 
-// Get headers
+/* Remove header */
+
+headersContainer.addEventListener("click", (event) => {
+  const index = event.target.dataset.remove;
+
+  if (index === undefined) return;
+
+  headers.splice(Number(index), 1);
+
+  renderHeaders();
+});
+
+
+/* =========================
+   GENERATE CODE
+========================= */
+
+generateBtn.addEventListener("click", () => {
+
+  const method = methodInput.value;
+  const url = urlInput.value.trim();
+
+  if (!url) {
+    javascriptOutput.textContent = "Please enter an API URL.";
+    pythonOutput.textContent = "Please enter an API URL.";
+    curlOutput.textContent = "Please enter an API URL.";
+    return;
+  }
+
+  const requestHeaders = getHeaders();
+  const body = getBody();
+
+  javascriptOutput.textContent =
+    generateJavaScript(method, url, requestHeaders, body);
+
+  pythonOutput.textContent =
+    generatePython(method, url, requestHeaders, body);
+
+  curlOutput.textContent =
+    generateCurl(method, url, requestHeaders, body);
+});
+
+
+/* =========================
+   GET HEADERS
+========================= */
+
 function getHeaders() {
+
   const result = {};
 
   headers.forEach((header) => {
+
     const key = header.key.trim();
 
     if (!key) return;
 
     result[key] = header.value;
+
   });
 
   return result;
 }
 
-// Get JSON body
-function getBody() {
-  const text = bodyInput?.value.trim();
 
-  if (!text) {
+/* =========================
+   GET JSON BODY
+========================= */
+
+function getBody() {
+
+  const value = bodyInput.value.trim();
+
+  if (!value) {
     return null;
   }
 
   try {
-    return JSON.parse(text);
+
+    return JSON.parse(value);
+
   } catch {
-    return text;
+
+    return value;
+
   }
 }
 
-// Generate readable request preview
-function generatePreview(request) {
-  const headerText = Object.entries(request.headers)
-    .map(([key, value]) => `${key}: ${value}`)
-    .join("\n");
 
-  let result = `${request.method} ${request.url}\n`;
+/* =========================
+   JAVASCRIPT GENERATOR
+========================= */
 
-  if (headerText) {
-    result += `\nHeaders:\n${headerText}\n`;
+function generateJavaScript(method, url, headers, body) {
+
+  const headerLines = Object.entries(headers)
+    .map(([key, value]) => `    "${key}": "${escapeJs(value)}"`)
+    .join(",\n");
+
+  let code = `fetch("${escapeJs(url)}", {
+  method: "${method}"`;
+
+  if (Object.keys(headers).length > 0) {
+
+    code += `,
+  headers: {
+${headerLines}
+  }`;
+
   }
 
-  if (request.body !== null) {
-    result += `\nBody:\n${typeof request.body === "string"
-      ? request.body
-      : JSON.stringify(request.body, null, 2)
-    }`;
+  if (body !== null) {
+
+    const bodyJson =
+      typeof body === "string"
+        ? body
+        : JSON.stringify(body, null, 2);
+
+    code += `,
+  body: JSON.stringify(${bodyJson})`;
+
   }
 
-  return result;
+  code += `
+});`;
+
+  return code;
 }
 
-// Show generated output
-function showOutput(text) {
-  if (!output) return;
 
-  output.textContent = text;
+/* =========================
+   PYTHON GENERATOR
+========================= */
+
+function generatePython(method, url, headers, body) {
+
+  const pythonMethod = method.toLowerCase();
+
+  let code = `import requests
+
+response = requests.${pythonMethod}(
+    "${escapePython(url)}"`;
+
+  if (Object.keys(headers).length > 0) {
+
+    code += `,
+    headers=${JSON.stringify(headers, null, 4)}`;
+
+  }
+
+  if (body !== null) {
+
+    if (typeof body === "string") {
+
+      code += `,
+    data=${JSON.stringify(body)}`;
+
+    } else {
+
+      code += `,
+    json=${JSON.stringify(body, null, 4)}`;
+
+    }
+
+  }
+
+  code += `
+)`;
+
+  return code;
 }
 
-// Copy generated request
-if (copyBtn) {
-  copyBtn.addEventListener("click", async () => {
-    if (!output?.textContent) return;
+
+/* =========================
+   CURL GENERATOR
+========================= */
+
+function generateCurl(method, url, headers, body) {
+
+  let code =
+    `curl -X ${method} "${escapeCurl(url)}"`;
+
+  Object.entries(headers).forEach(([key, value]) => {
+
+    code += ` \\
+  -H "${escapeCurl(key)}: ${escapeCurl(value)}"`;
+
+  });
+
+  if (body !== null) {
+
+    const bodyText =
+      typeof body === "string"
+        ? body
+        : JSON.stringify(body);
+
+    code += ` \\
+  -d '${bodyText.replace(/'/g, "'\\''")}'`;
+
+  }
+
+  return code;
+}
+
+
+/* =========================
+   COPY BUTTONS
+========================= */
+
+document.querySelectorAll(".copy-btn").forEach((button) => {
+
+  button.addEventListener("click", async () => {
+
+    const targetId = button.dataset.copy;
+    const target = document.getElementById(targetId);
+
+    if (!target) return;
 
     try {
-      await navigator.clipboard.writeText(output.textContent);
 
-      const oldText = copyBtn.textContent;
-      copyBtn.textContent = "Copied!";
+      await navigator.clipboard.writeText(target.textContent);
+
+      const oldText = button.textContent;
+
+      button.textContent = "Copied!";
 
       setTimeout(() => {
-        copyBtn.textContent = oldText;
+        button.textContent = oldText;
       }, 1500);
-    } catch {
-      alert("Copy failed. Please copy manually.");
-    }
-  });
-}
 
-// Basic HTML escaping
+    } catch {
+
+      alert("Copy failed. Please copy manually.");
+
+    }
+
+  });
+
+});
+
+
+/* =========================
+   ESCAPE HELPERS
+========================= */
+
 function escapeHtml(value) {
+
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+
 }
 
-// Start with one header field
-headers.push({
-  key: "Content-Type",
-  value: "application/json"
-});
+
+function escapeJs(value) {
+
+  return String(value)
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')
+    .replaceAll("\n", "\\n");
+
+}
+
+
+function escapePython(value) {
+
+  return String(value)
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')
+    .replaceAll("\n", "\\n");
+
+}
+
+
+function escapeCurl(value) {
+
+  return String(value)
+    .replaceAll('"', '\\"');
+
+}
+
+
+/* Initial render */
 
 renderHeaders();
