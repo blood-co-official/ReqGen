@@ -1,83 +1,74 @@
 /* =========================================
-   REQGEN — SCRIPT
+   REQGEN V2
+   History + Saved Requests
 ========================================= */
 
 const methodInput = document.querySelector(".method");
 const urlInput = document.querySelector(".url-input");
+const bodyInput = document.querySelector("textarea");
 
 const headersContainer = document.getElementById("headers");
 const addHeaderBtn = document.getElementById("addHeader");
 
-const bodyInput = document.querySelector("textarea");
+const javascriptOutput = document.getElementById("javascriptOutput");
+const pythonOutput = document.getElementById("pythonOutput");
+const curlOutput = document.getElementById("curlOutput");
 
 const generateButtons = [
   document.getElementById("generate"),
   document.getElementById("generateRequest")
 ];
 
-const javascriptOutput = document.getElementById("javascriptOutput");
-const pythonOutput = document.getElementById("pythonOutput");
-const curlOutput = document.getElementById("curlOutput");
-
-const newRequestBtn = document.getElementById("newRequest");
-
-const mobileMenu = document.getElementById("mobileMenu");
-const sidebar = document.getElementById("sidebar");
-const sidebarOverlay = document.getElementById("sidebarOverlay");
-
-const requestTabs = document.querySelectorAll(".request-tab");
-const codeTabs = document.querySelectorAll(".code-tab");
-
 let headers = [];
 
 
 /* =========================================
-   DEFAULT VALUES
+   STORAGE
 ========================================= */
 
-if (methodInput) {
-  methodInput.value = "GET";
+const HISTORY_KEY = "reqgen_history";
+const SAVED_KEY = "reqgen_saved";
+
+function getHistory() {
+  return JSON.parse(
+    localStorage.getItem(HISTORY_KEY) || "[]"
+  );
 }
 
-if (urlInput) {
-  urlInput.value = "";
+function getSaved() {
+  return JSON.parse(
+    localStorage.getItem(SAVED_KEY) || "[]"
+  );
 }
 
-if (bodyInput) {
-  bodyInput.value = "";
+function saveHistory(data) {
+  localStorage.setItem(
+    HISTORY_KEY,
+    JSON.stringify(data)
+  );
+}
+
+function saveSaved(data) {
+  localStorage.setItem(
+    SAVED_KEY,
+    JSON.stringify(data)
+  );
 }
 
 
 /* =========================================
-   ADD HEADER
+   HEADERS
 ========================================= */
 
 function addHeader(key = "", value = "") {
-
-  headers.push({
-    key,
-    value
-  });
-
+  headers.push({ key, value });
   renderHeaders();
 }
-
-
-/* =========================================
-   REMOVE HEADER
-========================================= */
 
 function removeHeader(index) {
-
   headers.splice(index, 1);
-
   renderHeaders();
 }
-
-
-/* =========================================
-   RENDER HEADERS
-========================================= */
 
 function renderHeaders() {
 
@@ -97,7 +88,6 @@ function renderHeaders() {
         class="header-key"
         placeholder="Header name"
         value="${escapeHtml(header.key)}"
-        data-index="${index}"
       >
 
       <input
@@ -105,7 +95,6 @@ function renderHeaders() {
         class="header-value"
         placeholder="Header value"
         value="${escapeHtml(header.value)}"
-        data-index="${index}"
       >
 
       <button
@@ -123,15 +112,10 @@ function renderHeaders() {
 
   document
     .querySelectorAll(".header-key")
-    .forEach(input => {
+    .forEach((input, index) => {
 
-      input.addEventListener("input", event => {
-
-        const index =
-          Number(event.target.dataset.index);
-
-        headers[index].key =
-          event.target.value;
+      input.addEventListener("input", e => {
+        headers[index].key = e.target.value;
       });
 
     });
@@ -139,15 +123,10 @@ function renderHeaders() {
 
   document
     .querySelectorAll(".header-value")
-    .forEach(input => {
+    .forEach((input, index) => {
 
-      input.addEventListener("input", event => {
-
-        const index =
-          Number(event.target.dataset.index);
-
-        headers[index].value =
-          event.target.value;
+      input.addEventListener("input", e => {
+        headers[index].value = e.target.value;
       });
 
     });
@@ -158,20 +137,17 @@ function renderHeaders() {
     .forEach(button => {
 
       button.addEventListener("click", () => {
-
         removeHeader(
           Number(button.dataset.remove)
         );
-
       });
 
     });
-
 }
 
 
 /* =========================================
-   ESCAPE HTML
+   HELPERS
 ========================================= */
 
 function escapeHtml(value) {
@@ -184,10 +160,6 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-
-/* =========================================
-   GET HEADERS
-========================================= */
 
 function getHeaders() {
 
@@ -207,50 +179,42 @@ function getHeaders() {
 }
 
 
-/* =========================================
-   GET JSON BODY
-========================================= */
-
 function getBody() {
 
   if (!bodyInput) return null;
 
-  const value =
-    bodyInput.value.trim();
+  const value = bodyInput.value.trim();
 
-  if (!value) {
-    return null;
-  }
+  if (!value) return null;
 
   try {
-
     return JSON.parse(value);
-
   } catch {
-
     return value;
-
   }
-
 }
 
 
 /* =========================================
-   FORMAT JSON
+   REQUEST OBJECT
 ========================================= */
 
-function formatJson(value) {
+function getCurrentRequest() {
 
-  if (typeof value === "string") {
-    return value;
-  }
+  return {
+    id: Date.now(),
+    method: methodInput?.value || "GET",
+    url: urlInput?.value.trim() || "",
+    headers: getHeaders(),
+    body: getBody(),
+    createdAt: new Date().toLocaleString()
+  };
 
-  return JSON.stringify(value, null, 2);
 }
 
 
 /* =========================================
-   JAVASCRIPT GENERATOR
+   JAVASCRIPT
 ========================================= */
 
 function generateJavaScript(
@@ -263,10 +227,7 @@ function generateJavaScript(
   let code = `fetch("${url}", {
   method: "${method}"`;
 
-  const headerKeys =
-    Object.keys(requestHeaders);
-
-  if (headerKeys.length > 0) {
+  if (Object.keys(requestHeaders).length) {
 
     code += `,
   headers: ${JSON.stringify(
@@ -277,20 +238,19 @@ function generateJavaScript(
 
   }
 
-
   if (
     body !== null &&
     ["POST", "PUT", "PATCH"].includes(method)
   ) {
 
-    const bodyString =
-      JSON.stringify(body, null, 2);
-
     code += `,
-  body: JSON.stringify(${bodyString})`;
+  body: JSON.stringify(${JSON.stringify(
+      body,
+      null,
+      2
+    )})`;
 
   }
-
 
   code += `
 });`;
@@ -300,7 +260,7 @@ function generateJavaScript(
 
 
 /* =========================================
-   PYTHON GENERATOR
+   PYTHON
 ========================================= */
 
 function generatePython(
@@ -316,8 +276,7 @@ function generatePython(
 response = requests.${method.toLowerCase()}(
     "${url}"`;
 
-
-  if (Object.keys(requestHeaders).length > 0) {
+  if (Object.keys(requestHeaders).length) {
 
     code += `,
     headers=${JSON.stringify(
@@ -327,7 +286,6 @@ response = requests.${method.toLowerCase()}(
     ).replace(/^/gm, "    ")}`;
 
   }
-
 
   if (
     body !== null &&
@@ -343,7 +301,6 @@ response = requests.${method.toLowerCase()}(
 
   }
 
-
   code += `
 )
 
@@ -354,7 +311,7 @@ print(response.json())`;
 
 
 /* =========================================
-   CURL GENERATOR
+   CURL
 ========================================= */
 
 function generateCurl(
@@ -367,7 +324,6 @@ function generateCurl(
   let code =
     `curl -X ${method} "${url}"`;
 
-
   Object.entries(requestHeaders)
     .forEach(([key, value]) => {
 
@@ -376,113 +332,460 @@ function generateCurl(
 
     });
 
-
   if (
     body !== null &&
     ["POST", "PUT", "PATCH"].includes(method)
   ) {
 
-    const json =
-      JSON.stringify(body);
-
     code +=
-      ` \\\n  -d '${json}'`;
+      ` \\\n  -d '${JSON.stringify(body)}'`;
 
   }
-
 
   return code;
 }
 
 
 /* =========================================
-   GENERATE ALL CODE
+   GENERATE
 ========================================= */
 
 function generateCode() {
 
-  const method =
-    methodInput?.value || "GET";
+  const request = getCurrentRequest();
 
-  const url =
-    urlInput?.value.trim() || "";
-
-
-  if (!url) {
-
+  if (!request.url) {
     alert("Please enter an API URL.");
+    return;
+  }
+
+  const js = generateJavaScript(
+    request.method,
+    request.url,
+    request.headers,
+    request.body
+  );
+
+  const python = generatePython(
+    request.method,
+    request.url,
+    request.headers,
+    request.body
+  );
+
+  const curl = generateCurl(
+    request.method,
+    request.url,
+    request.headers,
+    request.body
+  );
+
+
+  if (javascriptOutput)
+    javascriptOutput.textContent = js;
+
+  if (pythonOutput)
+    pythonOutput.textContent = python;
+
+  if (curlOutput)
+    curlOutput.textContent = curl;
+
+
+  /* Automatically add to history */
+  addToHistory(request);
+
+  showToast("Request generated ✓");
+}
+
+
+/* =========================================
+   HISTORY
+========================================= */
+
+function addToHistory(request) {
+
+  let history = getHistory();
+
+  /* newest first */
+  history.unshift(request);
+
+  /* Keep last 50 */
+  history = history.slice(0, 50);
+
+  saveHistory(history);
+
+  renderHistory();
+}
+
+
+function deleteHistory(id) {
+
+  const history =
+    getHistory().filter(item => item.id !== id);
+
+  saveHistory(history);
+
+  renderHistory();
+
+  showToast("History deleted");
+}
+
+
+function clearHistory() {
+
+  localStorage.removeItem(HISTORY_KEY);
+
+  renderHistory();
+
+  showToast("History cleared");
+}
+
+
+/* =========================================
+   SAVED REQUESTS
+========================================= */
+
+function saveCurrentRequest() {
+
+  const request = getCurrentRequest();
+
+  if (!request.url) {
+    alert("Enter a URL first.");
+    return;
+  }
+
+  const name =
+    prompt(
+      "Enter a name for this request:",
+      `${request.method} Request`
+    );
+
+  if (!name) return;
+
+  request.name = name;
+
+  let saved = getSaved();
+
+  saved.unshift(request);
+
+  saveSaved(saved);
+
+  renderSaved();
+
+  showToast("Request saved ✓");
+}
+
+
+function deleteSaved(id) {
+
+  const saved =
+    getSaved().filter(item => item.id !== id);
+
+  saveSaved(saved);
+
+  renderSaved();
+
+  showToast("Saved request deleted");
+}
+
+
+/* =========================================
+   LOAD REQUEST
+========================================= */
+
+function loadRequest(request) {
+
+  if (methodInput)
+    methodInput.value = request.method;
+
+  if (urlInput)
+    urlInput.value = request.url;
+
+  headers = Object.entries(
+    request.headers || {}
+  ).map(([key, value]) => ({
+    key,
+    value
+  }));
+
+  renderHeaders();
+
+  if (bodyInput) {
+
+    bodyInput.value =
+      request.body
+        ? JSON.stringify(
+            request.body,
+            null,
+            2
+          )
+        : "";
+
+  }
+
+  showToast("Request loaded ✓");
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+}
+
+
+/* =========================================
+   HISTORY UI
+========================================= */
+
+function renderHistory() {
+
+  const container =
+    document.getElementById("historyList");
+
+  if (!container) return;
+
+  const history = getHistory();
+
+  if (!history.length) {
+
+    container.innerHTML = `
+      <div class="empty-state">
+        <div>🕘</div>
+        <p>No request history yet.</p>
+      </div>
+    `;
 
     return;
   }
 
 
-  const requestHeaders =
-    getHeaders();
+  container.innerHTML = history.map(item => `
 
-  const body =
-    getBody();
+    <div class="request-item">
 
+      <div
+        class="request-main"
+        data-load-history="${item.id}"
+      >
 
-  const js =
-    generateJavaScript(
-      method,
-      url,
-      requestHeaders,
-      body
-    );
+        <span class="request-method">
+          ${escapeHtml(item.method)}
+        </span>
 
-  const python =
-    generatePython(
-      method,
-      url,
-      requestHeaders,
-      body
-    );
+        <span class="request-url">
+          ${escapeHtml(item.url)}
+        </span>
 
-  const curl =
-    generateCurl(
-      method,
-      url,
-      requestHeaders,
-      body
-    );
+        <small>
+          ${escapeHtml(item.createdAt)}
+        </small>
 
+      </div>
 
-  if (javascriptOutput) {
-    javascriptOutput.textContent = js;
-  }
+      <button
+        class="delete-btn"
+        data-delete-history="${item.id}"
+      >
+        ×
+      </button>
 
-  if (pythonOutput) {
-    pythonOutput.textContent = python;
-  }
+    </div>
 
-  if (curlOutput) {
-    curlOutput.textContent = curl;
-  }
+  `).join("");
 
 
-  updateRequestInfo(method);
+  container
+    .querySelectorAll("[data-load-history]")
+    .forEach(item => {
+
+      item.addEventListener("click", () => {
+
+        const id =
+          Number(item.dataset.loadHistory);
+
+        const request =
+          getHistory().find(
+            x => x.id === id
+          );
+
+        if (request)
+          loadRequest(request);
+
+      });
+
+    });
+
+
+  container
+    .querySelectorAll("[data-delete-history]")
+    .forEach(button => {
+
+      button.addEventListener("click", e => {
+
+        e.stopPropagation();
+
+        deleteHistory(
+          Number(
+            button.dataset.deleteHistory
+          )
+        );
+
+      });
+
+    });
+
 }
 
 
 /* =========================================
-   REQUEST INFO
+   SAVED UI
 ========================================= */
 
-function updateRequestInfo(method) {
+function renderSaved() {
 
-  const methodInfo =
-    document.querySelector(".method-info");
+  const container =
+    document.getElementById("savedList");
 
-  if (methodInfo) {
-    methodInfo.textContent = method;
+  if (!container) return;
+
+  const saved = getSaved();
+
+  if (!saved.length) {
+
+    container.innerHTML = `
+      <div class="empty-state">
+        <div>⭐</div>
+        <p>No saved requests yet.</p>
+      </div>
+    `;
+
+    return;
   }
+
+
+  container.innerHTML = saved.map(item => `
+
+    <div class="request-item">
+
+      <div
+        class="request-main"
+        data-load-saved="${item.id}"
+      >
+
+        <strong>
+          ${escapeHtml(
+            item.name || "Unnamed Request"
+          )}
+        </strong>
+
+        <span class="request-method">
+          ${escapeHtml(item.method)}
+        </span>
+
+        <span class="request-url">
+          ${escapeHtml(item.url)}
+        </span>
+
+      </div>
+
+      <button
+        class="delete-btn"
+        data-delete-saved="${item.id}"
+      >
+        ×
+      </button>
+
+    </div>
+
+  `).join("");
+
+
+  container
+    .querySelectorAll("[data-load-saved]")
+    .forEach(item => {
+
+      item.addEventListener("click", () => {
+
+        const id =
+          Number(item.dataset.loadSaved);
+
+        const request =
+          getSaved().find(
+            x => x.id === id
+          );
+
+        if (request)
+          loadRequest(request);
+
+      });
+
+    });
+
+
+  container
+    .querySelectorAll("[data-delete-saved]")
+    .forEach(button => {
+
+      button.addEventListener("click", e => {
+
+        e.stopPropagation();
+
+        deleteSaved(
+          Number(
+            button.dataset.deleteSaved
+          )
+        );
+
+      });
+
+    });
 
 }
 
 
 /* =========================================
-   GENERATE BUTTONS
+   TOAST
+========================================= */
+
+function showToast(message) {
+
+  let toast =
+    document.getElementById("reqgenToast");
+
+  if (!toast) {
+
+    toast = document.createElement("div");
+
+    toast.id = "reqgenToast";
+
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #168cff;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 10px;
+      z-index: 99999;
+      font-weight: 600;
+      box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    `;
+
+    document.body.appendChild(toast);
+  }
+
+  toast.textContent = message;
+
+  clearTimeout(toast.timer);
+
+  toast.timer = setTimeout(() => {
+    toast.remove();
+  }, 1800);
+}
+
+
+/* =========================================
+   BUTTON EVENTS
 ========================================= */
 
 generateButtons.forEach(button => {
@@ -497,10 +800,6 @@ generateButtons.forEach(button => {
 });
 
 
-/* =========================================
-   ADD HEADER BUTTON
-========================================= */
-
 if (addHeaderBtn) {
 
   addHeaderBtn.addEventListener(
@@ -512,98 +811,45 @@ if (addHeaderBtn) {
 
 
 /* =========================================
-   NEW REQUEST
-========================================= */
-
-if (newRequestBtn) {
-
-  newRequestBtn.addEventListener(
-    "click",
-    () => {
-
-      if (methodInput) {
-        methodInput.value = "GET";
-      }
-
-      if (urlInput) {
-        urlInput.value = "";
-      }
-
-      if (bodyInput) {
-        bodyInput.value = "";
-      }
-
-      headers = [];
-
-      renderHeaders();
-
-      if (javascriptOutput) {
-        javascriptOutput.textContent =
-          "Generate a request to see JavaScript code.";
-      }
-
-      if (pythonOutput) {
-        pythonOutput.textContent =
-          "Generate a request to see Python code.";
-      }
-
-      if (curlOutput) {
-        curlOutput.textContent =
-          "Generate a request to see cURL code.";
-      }
-
-      updateRequestInfo("GET");
-
-    }
-  );
-
-}
-
-
-/* =========================================
-   CODE COPY BUTTONS
+   SAVE BUTTON
 ========================================= */
 
 document
-  .querySelectorAll(".copy-btn")
+  .querySelectorAll(
+    "#saveRequest, .save-request, [data-action='save']"
+  )
   .forEach(button => {
 
     button.addEventListener(
       "click",
-      async () => {
+      saveCurrentRequest
+    );
 
-        const targetId =
-          button.dataset.copy;
+  });
 
-        const target =
-          document.getElementById(targetId);
 
-        if (!target) return;
+/* =========================================
+   HISTORY BUTTON
+========================================= */
 
-        try {
+document
+  .querySelectorAll(
+    "#historyBtn, [data-page='history']"
+  )
+  .forEach(button => {
 
-          await navigator.clipboard.writeText(
-            target.textContent
-          );
+    button.addEventListener(
+      "click",
+      () => {
 
-          const oldText =
-            button.textContent;
+        const history =
+          getHistory();
 
-          button.textContent =
-            "Copied ✓";
-
-          setTimeout(() => {
-
-            button.textContent =
-              oldText;
-
-          }, 1500);
-
-        } catch {
-
-          alert("Copy failed.");
-
+        if (!history.length) {
+          showToast("No history yet");
         }
+
+        renderHistory();
 
       }
     );
@@ -612,94 +858,25 @@ document
 
 
 /* =========================================
-   REQUEST TABS
+   SAVED BUTTON
 ========================================= */
 
-requestTabs.forEach(tab => {
+document
+  .querySelectorAll(
+    "#savedBtn, [data-page='saved']"
+  )
+  .forEach(button => {
 
-  tab.addEventListener(
-    "click",
-    () => {
+    button.addEventListener(
+      "click",
+      () => {
 
-      requestTabs.forEach(item => {
-        item.classList.remove("active");
-      });
+        renderSaved();
 
-      tab.classList.add("active");
-
-    }
-  );
-
-});
-
-
-/* =========================================
-   CODE TABS
-========================================= */
-
-codeTabs.forEach((tab, index) => {
-
-  tab.addEventListener(
-    "click",
-    () => {
-
-      codeTabs.forEach(item => {
-        item.classList.remove("active");
-      });
-
-      tab.classList.add("active");
-
-      const outputs =
-        document.querySelectorAll(".output-box");
-
-      outputs.forEach(output => {
-        output.style.display = "none";
-      });
-
-      if (outputs[index]) {
-        outputs[index].style.display = "block";
       }
+    );
 
-    }
-  );
-
-});
-
-
-/* =========================================
-   MOBILE SIDEBAR
-========================================= */
-
-if (mobileMenu) {
-
-  mobileMenu.addEventListener(
-    "click",
-    () => {
-
-      sidebar?.classList.add("open");
-
-      sidebarOverlay?.classList.add("active");
-
-    }
-  );
-
-}
-
-
-if (sidebarOverlay) {
-
-  sidebarOverlay.addEventListener(
-    "click",
-    () => {
-
-      sidebar?.classList.remove("open");
-
-      sidebarOverlay?.classList.remove("active");
-
-    }
-  );
-
-}
+  });
 
 
 /* =========================================
@@ -707,5 +884,9 @@ if (sidebarOverlay) {
 ========================================= */
 
 renderHeaders();
+renderHistory();
+renderSaved();
 
-updateRequestInfo("GET");
+console.log(
+  "ReqGen V2 initialized successfully."
+);
