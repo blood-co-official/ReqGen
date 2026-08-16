@@ -1,16 +1,17 @@
-/* =========================================
-   REQGEN V3 — SCRIPT
-   Production by BLOOD-CO
-========================================= */
+/* =========================================================
+   REQGEN V4 — SCRIPT.JS
+========================================================= */
 
 "use strict";
 
-/* =========================================
+/* =========================================================
    STORAGE
-========================================= */
+========================================================= */
 
-const HISTORY_KEY = "reqgen_v3_history";
-const SAVED_KEY = "reqgen_v3_saved";
+const HISTORY_KEY = "reqgen_v4_history";
+const SAVED_KEY = "reqgen_v4_saved";
+const COLLECTION_KEY = "reqgen_v4_collections";
+const SETTINGS_KEY = "reqgen_v4_settings";
 
 let historyData = JSON.parse(
   localStorage.getItem(HISTORY_KEY) || "[]"
@@ -20,13 +21,21 @@ let savedData = JSON.parse(
   localStorage.getItem(SAVED_KEY) || "[]"
 );
 
+let collectionsData = JSON.parse(
+  localStorage.getItem(COLLECTION_KEY) || "[]"
+);
+
+let settings = JSON.parse(
+  localStorage.getItem(SETTINGS_KEY) || "{}"
+);
+
 let currentRequest = null;
 let currentLanguage = "javascript";
 
 
-/* =========================================
+/* =========================================================
    HELPERS
-========================================= */
+========================================================= */
 
 const $ = (id) => document.getElementById(id);
 
@@ -40,6 +49,16 @@ function saveStorage() {
     SAVED_KEY,
     JSON.stringify(savedData)
   );
+
+  localStorage.setItem(
+    COLLECTION_KEY,
+    JSON.stringify(collectionsData)
+  );
+
+  localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify(settings)
+  );
 }
 
 function escapeHTML(value) {
@@ -47,21 +66,201 @@ function escapeHTML(value) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 
-/* =========================================
-   REQUEST HEADERS
-========================================= */
+/* =========================================================
+   PARAMS
+========================================================= */
 
-function addHeader(key = "", value = "") {
+function addParam(key = "", value = "", enabled = true) {
 
-  const container = $("headersContainer");
+  const container = $("paramsContainer");
+
+  if (!container) return;
 
   const row = document.createElement("div");
 
-  row.className = "header-row";
+  row.className = "param-row";
+
+  row.innerHTML = `
+    <div class="param-enabled">
+      <input
+        type="checkbox"
+        class="param-check"
+        ${enabled ? "checked" : ""}
+      >
+    </div>
+
+    <input
+      type="text"
+      class="param-key"
+      placeholder="Key"
+      value="${escapeHTML(key)}"
+    >
+
+    <input
+      type="text"
+      class="param-value"
+      placeholder="Value"
+      value="${escapeHTML(value)}"
+    >
+
+    <button
+      type="button"
+      class="remove-param"
+    >×</button>
+  `;
+
+  row
+    .querySelector(".remove-param")
+    .addEventListener("click", () => {
+      row.remove();
+      updateURLFromParams();
+    });
+
+  row
+    .querySelectorAll("input")
+    .forEach((input) => {
+      input.addEventListener("input", updateURLFromParams);
+      input.addEventListener("change", updateURLFromParams);
+    });
+
+  container.appendChild(row);
+}
+
+
+function getParams() {
+
+  const result = [];
+
+  document
+    .querySelectorAll(".param-row")
+    .forEach((row) => {
+
+      const enabled =
+        row.querySelector(".param-check")?.checked;
+
+      const key =
+        row.querySelector(".param-key")?.value.trim();
+
+      const value =
+        row.querySelector(".param-value")?.value.trim();
+
+      if (key) {
+        result.push({
+          key,
+          value,
+          enabled: !!enabled
+        });
+      }
+    });
+
+  return result;
+}
+
+
+function buildURL() {
+
+  const base =
+    $("url").value.trim();
+
+  if (!base) return "";
+
+  const params =
+    getParams().filter(
+      (param) => param.enabled && param.key
+    );
+
+  if (!params.length) {
+    return base;
+  }
+
+  try {
+
+    const url = new URL(base);
+
+    params.forEach((param) => {
+      url.searchParams.set(
+        param.key,
+        param.value
+      );
+    });
+
+    return url.toString();
+
+  } catch {
+
+    const separator =
+      base.includes("?") ? "&" : "?";
+
+    return (
+      base +
+      separator +
+      params
+        .map(
+          (param) =>
+            `${encodeURIComponent(param.key)}=${encodeURIComponent(param.value)}`
+        )
+        .join("&")
+    );
+  }
+}
+
+
+function updateURLFromParams() {
+
+  const base =
+    $("url").value.trim();
+
+  if (!base) return;
+
+  try {
+
+    const clean =
+      new URL(base);
+
+    clean.search = "";
+
+    const params =
+      getParams().filter(
+        (param) => param.enabled && param.key
+      );
+
+    params.forEach((param) => {
+      clean.searchParams.set(
+        param.key,
+        param.value
+      );
+    });
+
+    $("url").value =
+      clean.toString();
+
+  } catch {
+    /* Invalid URL — leave it alone */
+  }
+}
+
+
+/* =========================================================
+   HEADERS
+========================================================= */
+
+function addHeader(key = "", value = "") {
+
+  const container =
+    $("headersContainer");
+
+  if (!container) return;
+
+  const row =
+    document.createElement("div");
+
+  row.className =
+    "header-row";
 
   row.innerHTML = `
     <input
@@ -81,10 +280,7 @@ function addHeader(key = "", value = "") {
     <button
       type="button"
       class="remove-header"
-      title="Remove header"
-    >
-      ×
-    </button>
+    >×</button>
   `;
 
   row
@@ -97,87 +293,288 @@ function addHeader(key = "", value = "") {
 }
 
 
-function getRequestHeaders() {
+function getHeaders() {
 
-  const result = {};
+  const headers = {};
 
   document
     .querySelectorAll(".header-row")
     .forEach((row) => {
 
       const key =
-        row
-          .querySelector(".header-key")
-          .value
-          .trim();
+        row.querySelector(".header-key")
+          ?.value.trim();
 
       const value =
-        row
-          .querySelector(".header-value")
-          .value
-          .trim();
+        row.querySelector(".header-value")
+          ?.value.trim();
 
       if (key) {
-        result[key] = value;
+        headers[key] = value;
       }
     });
 
-  return result;
+  return headers;
 }
 
 
-/* =========================================
+/* =========================================================
+   AUTH
+========================================================= */
+
+function updateAuthUI() {
+
+  const type =
+    $("authType")?.value || "none";
+
+  document
+    .querySelectorAll(".auth-fields")
+    .forEach((field) => {
+      field.classList.remove("active");
+    });
+
+  if (type === "bearer") {
+    $("bearerFields")?.classList.add("active");
+  }
+
+  if (type === "basic") {
+    $("basicFields")?.classList.add("active");
+  }
+
+  if (type === "apikey") {
+    $("apiKeyFields")?.classList.add("active");
+  }
+}
+
+
+function applyAuth(headers, params) {
+
+  const type =
+    $("authType")?.value || "none";
+
+  if (type === "bearer") {
+
+    const token =
+      $("bearerToken")?.value.trim();
+
+    if (token) {
+
+      headers["Authorization"] =
+        `Bearer ${token}`;
+    }
+  }
+
+
+  if (type === "basic") {
+
+    const username =
+      $("basicUsername")?.value || "";
+
+    const password =
+      $("basicPassword")?.value || "";
+
+    if (username || password) {
+
+      const encoded =
+        btoa(
+          `${username}:${password}`
+        );
+
+      headers["Authorization"] =
+        `Basic ${encoded}`;
+    }
+  }
+
+
+  if (type === "apikey") {
+
+    const name =
+      $("apiKeyName")?.value.trim();
+
+    const value =
+      $("apiKeyValue")?.value.trim();
+
+    const location =
+      $("apiKeyLocation")?.value ||
+      "header";
+
+    if (name && value) {
+
+      if (location === "header") {
+
+        headers[name] = value;
+
+      } else {
+
+        params.push({
+          key: name,
+          value,
+          enabled: true
+        });
+      }
+    }
+  }
+
+  return {
+    headers,
+    params
+  };
+}
+
+
+/* =========================================================
    BODY
-========================================= */
+========================================================= */
 
-function getParsedBody() {
+function getBody() {
 
-  const raw = $("requestBody").value.trim();
+  const raw =
+    $("requestBody")?.value.trim();
 
   if (!raw) {
     return null;
   }
 
   try {
-
     return JSON.parse(raw);
-
   } catch {
-
     return raw;
   }
 }
 
 
-/* =========================================
-   CODE GENERATORS
-========================================= */
+/* =========================================================
+   REQUEST OBJECT
+========================================================= */
+
+function buildRequestObject() {
+
+  let headers =
+    getHeaders();
+
+  let params =
+    getParams();
+
+  const auth =
+    applyAuth(
+      headers,
+      params
+    );
+
+  headers =
+    auth.headers;
+
+  params =
+    auth.params;
+
+  let baseURL =
+    $("url").value.trim();
+
+  let finalURL =
+    buildURL();
+
+  /*
+    API key query parameter
+  */
+
+  const apiKeyParams =
+    params.filter(
+      (param) =>
+        param.enabled &&
+        param.key &&
+        !getParams().some(
+          (original) =>
+            original.key === param.key
+        )
+    );
+
+  if (apiKeyParams.length) {
+
+    try {
+
+      const url =
+        new URL(finalURL);
+
+      apiKeyParams.forEach(
+        (param) => {
+          url.searchParams.set(
+            param.key,
+            param.value
+          );
+        }
+      );
+
+      finalURL =
+        url.toString();
+
+    } catch {}
+  }
+
+  return {
+
+    id: Date.now(),
+
+    method:
+      $("method").value,
+
+    url:
+      finalURL || baseURL,
+
+    baseURL,
+
+    params,
+
+    headers,
+
+    authType:
+      $("authType")?.value || "none",
+
+    body:
+      getBody(),
+
+    createdAt:
+      new Date().toISOString()
+  };
+}
+
+
+/* =========================================================
+   JAVASCRIPT GENERATOR
+========================================================= */
 
 function generateJavaScript(request) {
 
   let code =
 `fetch(${JSON.stringify(request.url)}, {
-  method: "${request.method}"`;
+  method: ${JSON.stringify(request.method)}`;
 
-  if (Object.keys(request.headers).length > 0) {
+  if (
+    Object.keys(request.headers).length
+  ) {
 
     code += `,
   headers: ${JSON.stringify(
-    request.headers,
-    null,
-    2
-  ).replace(/\n/g, "\n  ")}`;
+      request.headers,
+      null,
+      2
+    ).replace(/\n/g, "\n  ")}`;
   }
 
   if (
     request.body !== null &&
-    !["GET", "HEAD"].includes(request.method)
+    !["GET", "HEAD"].includes(
+      request.method
+    )
   ) {
 
-    if (typeof request.body === "string") {
+    if (
+      typeof request.body === "string"
+    ) {
 
       code += `,
-  body: ${JSON.stringify(request.body)}`;
+  body: ${JSON.stringify(
+        request.body
+      )}`;
 
     } else {
 
@@ -197,6 +594,10 @@ function generateJavaScript(request) {
 }
 
 
+/* =========================================================
+   PYTHON GENERATOR
+========================================================= */
+
 function generatePython(request) {
 
   const method =
@@ -209,7 +610,7 @@ response = requests.${method}(
     ${JSON.stringify(request.url)}`;
 
   if (
-    Object.keys(request.headers).length > 0
+    Object.keys(request.headers).length
   ) {
 
     code += `,
@@ -225,7 +626,9 @@ response = requests.${method}(
     !["get", "head"].includes(method)
   ) {
 
-    if (typeof request.body === "string") {
+    if (
+      typeof request.body === "string"
+    ) {
 
       code += `,
     data=${JSON.stringify(
@@ -253,69 +656,184 @@ print(response.text)`;
 }
 
 
+/* =========================================================
+   CURL GENERATOR
+========================================================= */
+
 function generateCurl(request) {
 
   let code =
 `curl -X ${request.method} "${request.url}"`;
 
-  Object.entries(request.headers)
-    .forEach(([key, value]) => {
+  Object.entries(
+    request.headers
+  ).forEach(
+    ([key, value]) => {
 
       code +=
 ` \\
   -H "${key}: ${value}"`;
-    });
+    }
+  );
 
   if (
     request.body !== null &&
-    !["GET", "HEAD"].includes(request.method)
+    !["GET", "HEAD"].includes(
+      request.method
+    )
   ) {
 
-    let bodyText;
-
-    if (typeof request.body === "string") {
-
-      bodyText = request.body;
-
-    } else {
-
-      bodyText = JSON.stringify(
-        request.body
-      );
-    }
+    const body =
+      typeof request.body === "string"
+        ? request.body
+        : JSON.stringify(
+            request.body
+          );
 
     code +=
 ` \\
-  -d '${bodyText}'`;
+  -d '${body}'`;
   }
 
   return code;
 }
 
 
-/* =========================================
-   GENERATE ALL CODE
-========================================= */
+/* =========================================================
+   JAVA GENERATOR
+========================================================= */
 
-function buildRequestObject() {
+function generateJava(request) {
 
-  return {
+  let code =
+`HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("${request.url}"))`;
 
-    id: Date.now(),
+  Object.entries(
+    request.headers
+  ).forEach(
+    ([key, value]) => {
 
-    method: $("method").value,
+      code +=
+`\n    .header("${key}", "${value}")`;
+    }
+  );
 
-    url: $("url").value.trim(),
+  if (
+    request.body !== null &&
+    !["GET", "HEAD"].includes(
+      request.method
+    )
+  ) {
 
-    headers: getRequestHeaders(),
+    const body =
+      typeof request.body === "string"
+        ? request.body
+        : JSON.stringify(
+            request.body
+          );
 
-    body: getParsedBody(),
+    code +=
+`\n    .method("${request.method}", HttpRequest.BodyPublishers.ofString(${JSON.stringify(body)}))`;
 
-    createdAt:
-      new Date().toISOString()
-  };
+  } else {
+
+    code +=
+`\n    .method("${request.method}", HttpRequest.BodyPublishers.noBody())`;
+  }
+
+  code +=
+`
+    .build();
+
+HttpResponse<String> response =
+    HttpClient.newHttpClient().send(
+        request,
+        HttpResponse.BodyHandlers.ofString()
+    );
+
+System.out.println(response.body());`;
+
+  return code;
 }
 
+
+/* =========================================================
+   PHP GENERATOR
+========================================================= */
+
+function generatePHP(request) {
+
+  let code =
+`<?php
+
+$ch = curl_init();
+
+curl_setopt_array($ch, [
+    CURLOPT_URL => ${JSON.stringify(request.url)},
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CUSTOMREQUEST => ${JSON.stringify(
+      request.method
+    )}`;
+
+  if (
+    Object.keys(request.headers).length
+  ) {
+
+    const headers =
+      Object.entries(
+        request.headers
+      )
+        .map(
+          ([key, value]) =>
+            `        ${JSON.stringify(
+              `${key}: ${value}`
+            )}`
+        )
+        .join(",\n");
+
+    code += `,
+    CURLOPT_HTTPHEADER => [
+${headers}
+    ]`;
+  }
+
+  if (
+    request.body !== null &&
+    !["GET", "HEAD"].includes(
+      request.method
+    )
+  ) {
+
+    const body =
+      typeof request.body === "string"
+        ? request.body
+        : JSON.stringify(
+            request.body
+          );
+
+    code += `,
+    CURLOPT_POSTFIELDS => ${JSON.stringify(
+      body
+    )}`;
+  }
+
+  code += `
+]);
+
+$response = curl_exec($ch);
+
+curl_close($ch);
+
+echo $response;`;
+
+  return code;
+}
+
+
+/* =========================================================
+   ALL CODE
+========================================================= */
 
 function generateAllCode(request) {
 
@@ -327,59 +845,531 @@ function generateAllCode(request) {
 
   request.curl =
     generateCurl(request);
+
+  request.java =
+    generateJava(request);
+
+  request.php =
+    generatePHP(request);
 }
 
 
-/* =========================================
-   SHOW GENERATED CODE
-========================================= */
+/* =========================================================
+   SYNTAX HIGHLIGHTER
+========================================================= */
+
+function highlightCode(code, language) {
+
+  let escaped =
+    escapeHTML(code);
+
+  /*
+    Protect strings first.
+  */
+
+  const strings = [];
+
+  escaped =
+    escaped.replace(
+      /(["'`])(?:(?!\1)[^\\]|\\.)*\1/g,
+      (match) => {
+
+        const index =
+          strings.push(match) - 1;
+
+        return `___STRING_${index}___`;
+      }
+    );
+
+
+  /*
+    Comments
+  */
+
+  escaped =
+    escaped.replace(
+      /(\/\/.*$|#.*$)/gm,
+      '<span class="token-comment">$1</span>'
+    );
+
+
+  /*
+    Keywords
+  */
+
+  const keywords =
+    /\b(const|let|var|function|return|import|from|async|await|new|class|public|private|static|void|if|else|for|while|try|catch|throw|def|True|False|None|echo|use)\b/g;
+
+  escaped =
+    escaped.replace(
+      keywords,
+      '<span class="token-keyword">$1</span>'
+    );
+
+
+  /*
+    HTTP methods
+  */
+
+  escaped =
+    escaped.replace(
+      /\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/g,
+      '<span class="token-method">$1</span>'
+    );
+
+
+  /*
+    Numbers
+  */
+
+  escaped =
+    escaped.replace(
+      /\b\d+(?:\.\d+)?\b/g,
+      '<span class="token-number">$&</span>'
+    );
+
+
+  /*
+    Booleans
+  */
+
+  escaped =
+    escaped.replace(
+      /\b(true|false|null|undefined)\b/g,
+      '<span class="token-boolean">$1</span>'
+    );
+
+
+  /*
+    Restore strings
+  */
+
+  escaped =
+    escaped.replace(
+      /___STRING_(\d+)___/g,
+      (_, index) => {
+
+        return `
+          <span class="token-string">
+            ${strings[Number(index)]}
+          </span>
+        `;
+      }
+    );
+
+
+  return escaped;
+}
+
+
+/* =========================================================
+   LINE NUMBERS
+========================================================= */
+
+function updateLineNumbers(code) {
+
+  const lineNumbers =
+    $("lineNumbers");
+
+  if (!lineNumbers) return;
+
+  const lines =
+    code.split("\n").length;
+
+  lineNumbers.textContent =
+    Array.from(
+      { length: lines },
+      (_, index) => index + 1
+    ).join("\n");
+}
+
+
+/* =========================================================
+   SHOW CODE
+========================================================= */
 
 function showGeneratedCode() {
 
   if (!currentRequest) {
+
+    $("generatedCode").textContent =
+      "// Build a request to generate code.";
+
+    updateLineNumbers(
+      "// Build a request to generate code."
+    );
+
     return;
   }
 
-  const output =
-    $("generatedCode");
+  let code =
+    currentRequest[
+      currentLanguage
+    ];
 
-  const languageLabel =
-    $("codeLanguage");
-
-  if (currentLanguage === "javascript") {
-
-    output.textContent =
-      currentRequest.javascript;
-
-    languageLabel.textContent =
-      "JavaScript";
-
+  if (!code) {
+    code = "// Code not available.";
   }
 
-  else if (currentLanguage === "python") {
+  const highlighted =
+    highlightCode(
+      code,
+      currentLanguage
+    );
 
-    output.textContent =
-      currentRequest.python;
+  $("generatedCode").innerHTML =
+    highlighted;
 
-    languageLabel.textContent =
-      "Python";
+  updateLineNumbers(code);
 
-  }
 
-  else {
+  const languageNames = {
+    javascript: "JavaScript",
+    python: "Python",
+    curl: "cURL",
+    java: "Java",
+    php: "PHP"
+  };
 
-    output.textContent =
-      currentRequest.curl;
+  $("codeLanguage").textContent =
+    languageNames[
+      currentLanguage
+    ] || currentLanguage;
 
-    languageLabel.textContent =
-      "cURL";
+
+  const fileNames = {
+    javascript: "request.js",
+    python: "request.py",
+    curl: "request.sh",
+    java: "Request.java",
+    php: "request.php"
+  };
+
+  if ($("codeFileName")) {
+
+    $("codeFileName").textContent =
+      fileNames[
+        currentLanguage
+      ] || "request.txt";
   }
 }
 
 
-/* =========================================
+/* =========================================================
+   SEND REQUEST
+========================================================= */
+
+async function sendRequest() {
+
+  const url =
+    $("url").value.trim();
+
+  if (!url) {
+
+    alert(
+      "Please enter an API URL."
+    );
+
+    $("url").focus();
+
+    return;
+  }
+
+
+  let request;
+
+  try {
+
+    request =
+      buildRequestObject();
+
+  } catch (error) {
+
+    alert(
+      "Unable to build request."
+    );
+
+    return;
+  }
+
+
+  currentRequest =
+    request;
+
+  generateAllCode(
+    currentRequest
+  );
+
+  showGeneratedCode();
+
+
+  const button =
+    $("sendRequestBtn");
+
+  button.disabled = true;
+
+  button.textContent =
+    "⏳ Sending...";
+
+
+  $("responseStatus").textContent =
+    "REQUESTING";
+
+  $("responseStatus").className =
+    "response-status";
+
+
+  $("responseBody").textContent =
+    "Sending request...";
+
+
+  $("responseHeaders").textContent =
+    "Waiting for response...";
+
+
+  const start =
+    performance.now();
+
+
+  try {
+
+    const options = {
+      method:
+        request.method,
+
+      headers:
+        request.headers
+    };
+
+
+    if (
+      request.body !== null &&
+      !["GET", "HEAD"].includes(
+        request.method
+      )
+    ) {
+
+      if (
+        typeof request.body ===
+        "string"
+      ) {
+
+        options.body =
+          request.body;
+
+      } else {
+
+        options.body =
+          JSON.stringify(
+            request.body
+          );
+      }
+    }
+
+
+    const response =
+      await fetch(
+        request.url,
+        options
+      );
+
+
+    const time =
+      Math.round(
+        performance.now() - start
+      );
+
+
+    const text =
+      await response.text();
+
+
+    let formatted =
+      text;
+
+
+    try {
+
+      formatted =
+        JSON.stringify(
+          JSON.parse(text),
+          null,
+          2
+        );
+
+    } catch {
+      /* Raw response */
+    }
+
+
+    $("statusCode").textContent =
+      `${response.status} ${response.statusText}`;
+
+
+    $("responseTime").textContent =
+      `${time} ms`;
+
+
+    $("responseSize").textContent =
+      formatBytes(
+        new Blob([text]).size
+      );
+
+
+    $("responseStatus").textContent =
+      response.ok
+        ? `${response.status} OK`
+        : `${response.status} ERROR`;
+
+
+    $("responseStatus").className =
+      response.ok
+        ? "response-status success"
+        : "response-status error";
+
+
+    $("responseBody").textContent =
+      formatted;
+
+
+    const responseHeaders = {};
+
+    response.headers.forEach(
+      (value, key) => {
+        responseHeaders[key] =
+          value;
+      }
+    );
+
+
+    $("responseHeaders").textContent =
+      JSON.stringify(
+        responseHeaders,
+        null,
+        2
+      );
+
+
+    /*
+      HISTORY
+    */
+
+    const historyItem = {
+      ...request,
+
+      id: Date.now(),
+
+      status:
+        response.status,
+
+      responseTime:
+        time,
+
+      response:
+        formatted,
+
+      responseHeaders
+    };
+
+
+    historyData.unshift(
+      historyItem
+    );
+
+    historyData =
+      historyData.slice(
+        0,
+        50
+      );
+
+
+    saveStorage();
+
+    renderHistory();
+
+
+  } catch (error) {
+
+    $("responseStatus").textContent =
+      "ERROR";
+
+    $("responseStatus").className =
+      "response-status error";
+
+
+    $("statusCode").textContent =
+      "ERR";
+
+
+    $("responseTime").textContent =
+      "—";
+
+
+    $("responseSize").textContent =
+      "—";
+
+
+    $("responseBody").textContent =
+`Request failed.
+
+${error.message}
+
+Possible causes:
+• CORS restriction
+• Invalid URL
+• Network unavailable
+• API server unavailable`;
+
+
+    $("responseHeaders").textContent =
+      "// No response headers.";
+  }
+
+
+  button.disabled = false;
+
+  button.textContent =
+    "⚡ Send Request";
+}
+
+
+/* =========================================================
+   FORMAT JSON
+========================================================= */
+
+function formatJSON() {
+
+  const textarea =
+    $("requestBody");
+
+  if (!textarea) return;
+
+  const value =
+    textarea.value.trim();
+
+  if (!value) return;
+
+  try {
+
+    textarea.value =
+      JSON.stringify(
+        JSON.parse(value),
+        null,
+        2
+      );
+
+  } catch {
+
+    alert(
+      "Invalid JSON."
+    );
+  }
+}
+
+
+/* =========================================================
    RESPONSE
-========================================= */
+========================================================= */
 
 function clearResponse() {
 
@@ -406,332 +1396,97 @@ function clearResponse() {
 }
 
 
-function showResponseError(message) {
+/* =========================================================
+   COPY CODE
+========================================================= */
 
-  $("responseStatus").textContent =
-    "ERROR";
+async function copyCode() {
 
-  $("responseStatus").className =
-    "response-status error";
+  if (!currentRequest) return;
 
-  $("statusCode").textContent =
-    "ERR";
+  const code =
+    currentRequest[
+      currentLanguage
+    ];
 
-  $("responseTime").textContent =
-    "—";
-
-  $("responseSize").textContent =
-    "—";
-
-  $("responseBody").textContent =
-    message;
-}
-
-
-/* =========================================
-   SEND API REQUEST
-========================================= */
-
-async function sendRequest() {
-
-  const method =
-    $("method").value;
-
-  const url =
-    $("url").value.trim();
-
-  if (!url) {
-
-    alert("Please enter an API URL.");
-
-    $("url").focus();
-
-    return;
-  }
-
-
-  let headers =
-    getRequestHeaders();
-
-  let body =
-    $("requestBody").value.trim();
-
-
-  /* Prevent invalid JSON */
-
-  if (body) {
-
-    try {
-
-      JSON.parse(body);
-
-    } catch {
-
-      if (
-        headers["Content-Type"] &&
-        headers["Content-Type"]
-          .toLowerCase()
-          .includes("application/json")
-      ) {
-
-        alert(
-          "Invalid JSON body. Please check your JSON."
-        );
-
-        return;
-      }
-    }
-  }
-
-
-  const button =
-    $("sendRequestBtn");
-
-  const oldText =
-    button.textContent;
-
-  button.disabled = true;
-
-  button.textContent =
-    "⏳ Sending...";
-
-
-  $("responseStatus").textContent =
-    "REQUESTING";
-
-  $("responseStatus").className =
-    "response-status";
-
-  $("responseBody").textContent =
-    "Sending request...";
-
-  $("responseHeaders").textContent =
-    "Waiting for response...";
-
-
-  const startTime =
-    performance.now();
-
+  if (!code) return;
 
   try {
 
-    const options = {
+    await navigator.clipboard
+      .writeText(code);
 
-      method: method,
+    const button =
+      $("copyCodeBtn");
 
-      headers: headers
-    };
+    const old =
+      button.textContent;
 
+    button.textContent =
+      "✓ Copied";
 
-    /*
-      Only attach body to methods
-      that normally support a body.
-    */
-
-    if (
-      body &&
-      !["GET", "HEAD"].includes(method)
-    ) {
-
-      options.body = body;
-    }
-
-
-    const response =
-      await fetch(url, options);
-
-
-    const endTime =
-      performance.now();
-
-    const responseTime =
-      Math.round(
-        endTime - startTime
-      );
-
-
-    /* STATUS */
-
-    $("statusCode").textContent =
-      `${response.status} ${response.statusText}`;
-
-
-    $("responseTime").textContent =
-      `${responseTime} ms`;
-
-
-    $("responseStatus").textContent =
-      response.ok
-        ? `${response.status} OK`
-        : `${response.status} ERROR`;
-
-
-    $("responseStatus").className =
-      response.ok
-        ? "response-status success"
-        : "response-status error";
-
-
-    /* HEADERS */
-
-    const responseHeaders = {};
-
-    response.headers.forEach(
-      (value, key) => {
-
-        responseHeaders[key] =
-          value;
-      }
+    setTimeout(
+      () => {
+        button.textContent =
+          old;
+      },
+      1200
     );
 
+  } catch {
 
-    $("responseHeaders").textContent =
-      JSON.stringify(
-        responseHeaders,
-        null,
-        2
-      );
-
-
-    /* BODY */
-
-    const text =
-      await response.text();
-
-
-    let formattedBody =
-      text;
-
-
-    try {
-
-      const json =
-        JSON.parse(text);
-
-      formattedBody =
-        JSON.stringify(
-          json,
-          null,
-          2
-        );
-
-    } catch {
-
-      /* Not JSON */
-    }
-
-
-    $("responseBody").textContent =
-      formattedBody;
-
-
-    /* SIZE */
-
-    const size =
-      new Blob([text]).size;
-
-    $("responseSize").textContent =
-      formatBytes(size);
-
-
-    /* SAVE REQUEST TO HISTORY */
-
-    const historyRequest =
-      buildRequestObject();
-
-    generateAllCode(
-      historyRequest
+    alert(
+      "Unable to copy code."
     );
-
-
-    historyRequest.status =
-      response.status;
-
-    historyRequest.responseTime =
-      responseTime;
-
-
-    historyRequest.response =
-      formattedBody;
-
-
-    historyData.unshift(
-      historyRequest
-    );
-
-
-    historyData =
-      historyData.slice(0, 50);
-
-
-    saveStorage();
-
-    renderHistory();
-
-
-  } catch (error) {
-
-    console.error(error);
-
-
-    showResponseError(
-      `Request failed.\n\n${error.message}\n\nPossible reasons:\n• Invalid URL\n• Network error\n• CORS restriction\n• Target API unavailable`
-    );
-
   }
-
-
-  button.disabled = false;
-
-  button.textContent =
-    oldText;
 }
 
 
-/* =========================================
-   FORMAT BYTES
-========================================= */
+/* =========================================================
+   COPY RESPONSE
+========================================================= */
 
-function formatBytes(bytes) {
+async function copyResponse() {
 
-  if (bytes === 0) {
-    return "0 B";
-  }
+  const text =
+    $("responseBody").textContent;
 
-  if (!bytes) {
-    return "—";
-  }
+  if (!text) return;
 
-  const units = [
-    "B",
-    "KB",
-    "MB",
-    "GB"
-  ];
+  try {
 
-  const index =
-    Math.floor(
-      Math.log(bytes) /
-      Math.log(1024)
+    await navigator.clipboard
+      .writeText(text);
+
+    const button =
+      $("copyResponseBtn");
+
+    const old =
+      button.textContent;
+
+    button.textContent =
+      "✓ Copied";
+
+    setTimeout(
+      () => {
+        button.textContent =
+          old;
+      },
+      1200
     );
 
-  return (
-    parseFloat(
-      (
-        bytes /
-        Math.pow(1024, index)
-      ).toFixed(2)
-    )
-    +
-    " " +
-    units[index]
-  );
+  } catch {
+
+    alert(
+      "Unable to copy response."
+    );
+  }
 }
 
 
-/* =========================================
+/* =========================================================
    SAVE REQUEST
-========================================= */
+========================================================= */
 
 function saveRequest() {
 
@@ -740,7 +1495,7 @@ function saveRequest() {
     if (!$("url").value.trim()) {
 
       alert(
-        "Enter a URL and generate/test the request first."
+        "Enter a URL first."
       );
 
       return;
@@ -757,43 +1512,39 @@ function saveRequest() {
 
   const name =
     prompt(
-      "Enter a name for this request:",
+      "Request name:",
       `${currentRequest.method} Request`
     );
 
 
-  if (!name) {
-    return;
-  }
+  if (!name) return;
 
 
-  const saved =
-    {
-      ...currentRequest,
+  const item = {
+    ...currentRequest,
 
-      id: Date.now(),
+    id: Date.now(),
 
-      name:
-        name.trim(),
+    name:
+      name.trim(),
 
-      savedAt:
-        new Date().toISOString()
-    };
+    savedAt:
+      new Date().toISOString()
+  };
 
 
-  savedData.unshift(
-    saved
-  );
-
+  savedData.unshift(item);
 
   savedData =
-    savedData.slice(0, 50);
+    savedData.slice(
+      0,
+      100
+    );
 
 
   saveStorage();
 
   renderSaved();
-
 
   alert(
     "Request saved successfully!"
@@ -801,16 +1552,16 @@ function saveRequest() {
 }
 
 
-/* =========================================
+/* =========================================================
    LOAD REQUEST
-========================================= */
+========================================================= */
 
 function loadRequest(request) {
 
   currentRequest =
-    {
-      ...request
-    };
+    JSON.parse(
+      JSON.stringify(request)
+    );
 
 
   $("method").value =
@@ -818,31 +1569,56 @@ function loadRequest(request) {
 
 
   $("url").value =
-    request.url || "";
+    request.baseURL ||
+    request.url ||
+    "";
 
 
-  $("requestBody").value =
-    typeof request.body === "string"
-      ? request.body
-      : request.body
-        ? JSON.stringify(
-            request.body,
-            null,
-            2
-          )
-        : "";
+  /*
+    Params
+  */
 
+  $("paramsContainer").innerHTML =
+    "";
+
+
+  if (
+    request.params &&
+    request.params.length
+  ) {
+
+    request.params
+      .filter(
+        (param) =>
+          param.key
+      )
+      .forEach(
+        (param) => {
+
+          addParam(
+            param.key,
+            param.value,
+            param.enabled
+          );
+        }
+      );
+
+  } else {
+
+    addParam();
+  }
+
+
+  /*
+    Headers
+  */
 
   $("headersContainer").innerHTML =
     "";
 
 
-  const requestHeaders =
-    request.headers || {};
-
-
   Object.entries(
-    requestHeaders
+    request.headers || {}
   ).forEach(
     ([key, value]) => {
 
@@ -855,12 +1631,60 @@ function loadRequest(request) {
 
 
   if (
-    Object.keys(
-      requestHeaders
-    ).length === 0
+    !Object.keys(
+      request.headers || {}
+    ).length
   ) {
 
-    addHeader();
+    addHeader(
+      "Content-Type",
+      "application/json"
+    );
+  }
+
+
+  /*
+    Body
+  */
+
+  if (
+    request.body === null ||
+    request.body === undefined
+  ) {
+
+    $("requestBody").value =
+      "";
+
+  } else if (
+    typeof request.body ===
+    "string"
+  ) {
+
+    $("requestBody").value =
+      request.body;
+
+  } else {
+
+    $("requestBody").value =
+      JSON.stringify(
+        request.body,
+        null,
+        2
+      );
+  }
+
+
+  /*
+    Auth
+  */
+
+  if ($("authType")) {
+
+    $("authType").value =
+      request.authType ||
+      "none";
+
+    updateAuthUI();
   }
 
 
@@ -868,33 +1692,29 @@ function loadRequest(request) {
     currentRequest
   );
 
-
   showGeneratedCode();
-
-  clearResponse();
 
   openPage("builder");
 }
 
 
-/* =========================================
-   HISTORY
-========================================= */
+/* =========================================================
+   HISTORY RENDER
+========================================================= */
 
 function renderHistory() {
 
   const container =
     $("historyList");
 
+  if (!container) return;
+
 
   if (!historyData.length) {
 
     container.innerHTML = `
       <div class="empty-state">
-
-        <div class="empty-icon">
-          ↺
-        </div>
+        <div class="empty-icon">↺</div>
 
         <h3>
           No request history
@@ -903,7 +1723,6 @@ function renderHistory() {
         <p>
           Requests you send will appear here.
         </p>
-
       </div>
     `;
 
@@ -915,9 +1734,6 @@ function renderHistory() {
     historyData
       .map(
         (request, index) => {
-
-          const status =
-            request.status || "—";
 
           return `
             <div class="request-item">
@@ -945,18 +1761,8 @@ function renderHistory() {
                   ${
                     request.status
                       ? `
-                        <span
-                          class="method-tag"
-                          style="
-                            color:${
-                              request.status >= 200 &&
-                              request.status < 300
-                                ? "#29d391"
-                                : "#ff6078"
-                            };
-                          "
-                        >
-                          ${status}
+                        <span class="method-tag">
+                          ${request.status}
                         </span>
                       `
                       : ""
@@ -964,9 +1770,7 @@ function renderHistory() {
 
                 </div>
 
-                <div
-                  class="request-item-url"
-                >
+                <div class="request-item-url">
                   ${escapeHTML(
                     request.url
                   )}
@@ -974,9 +1778,7 @@ function renderHistory() {
 
               </div>
 
-
               <button
-                type="button"
                 class="delete-request"
                 data-history-delete="${index}"
               >
@@ -991,14 +1793,16 @@ function renderHistory() {
 }
 
 
-/* =========================================
-   SAVED
-========================================= */
+/* =========================================================
+   SAVED RENDER
+========================================================= */
 
 function renderSaved() {
 
   const container =
     $("savedList");
+
+  if (!container) return;
 
 
   if (!savedData.length) {
@@ -1055,9 +1859,7 @@ function renderSaved() {
 
                 </div>
 
-                <div
-                  class="request-item-url"
-                >
+                <div class="request-item-url">
                   ${escapeHTML(
                     request.url
                   )}
@@ -1065,9 +1867,7 @@ function renderSaved() {
 
               </div>
 
-
               <button
-                type="button"
                 class="delete-request"
                 data-saved-delete="${index}"
               >
@@ -1082,9 +1882,110 @@ function renderSaved() {
 }
 
 
-/* =========================================
+/* =========================================================
+   COLLECTIONS
+========================================================= */
+
+function renderCollections() {
+
+  const container =
+    $("collectionsList");
+
+  if (!container) return;
+
+
+  if (!collectionsData.length) {
+
+    container.innerHTML = `
+      <div class="empty-state">
+
+        <div class="empty-icon">
+          ▣
+        </div>
+
+        <h3>
+          No collections
+        </h3>
+
+        <p>
+          Create a collection to organize your requests.
+        </p>
+
+      </div>
+    `;
+
+    return;
+  }
+
+
+  container.innerHTML =
+    collectionsData
+      .map(
+        (collection, index) => {
+
+          return `
+            <div
+              class="collection-card"
+              data-collection-index="${index}"
+            >
+
+              <h3>
+                ${escapeHTML(
+                  collection.name
+                )}
+              </h3>
+
+              <p>
+                ${collection.requests?.length || 0}
+                requests
+              </p>
+
+            </div>
+          `;
+        }
+      )
+      .join("");
+}
+
+
+/* =========================================================
+   CREATE COLLECTION
+========================================================= */
+
+function createCollection() {
+
+  const name =
+    prompt(
+      "Collection name:"
+    );
+
+  if (!name) return;
+
+
+  collectionsData.push({
+
+    id: Date.now(),
+
+    name:
+      name.trim(),
+
+    requests: [],
+
+    createdAt:
+      new Date().toISOString()
+
+  });
+
+
+  saveStorage();
+
+  renderCollections();
+}
+
+
+/* =========================================================
    PAGE NAVIGATION
-========================================= */
+========================================================= */
 
 function openPage(page) {
 
@@ -1092,7 +1993,6 @@ function openPage(page) {
     .querySelectorAll(".page")
     .forEach(
       (element) => {
-
         element.classList.remove(
           "active"
         );
@@ -1104,7 +2004,6 @@ function openPage(page) {
     .querySelectorAll(".nav-item")
     .forEach(
       (element) => {
-
         element.classList.remove(
           "active"
         );
@@ -1112,72 +2011,82 @@ function openPage(page) {
     );
 
 
-  if (page === "builder") {
+  const pageMap = {
 
-    $("builderPage")
-      .classList.add("active");
+    builder: [
+      "builderPage",
+      "API Request Builder",
+      "Build, test and generate API requests."
+    ],
 
-    document
-      .querySelector(
-        '[data-page="builder"]'
-      )
-      .classList.add("active");
+    history: [
+      "historyPage",
+      "Request History",
+      "Your recently generated and tested requests."
+    ],
+
+    saved: [
+      "savedPage",
+      "Saved Requests",
+      "Your frequently used API requests."
+    ],
+
+    collections: [
+      "collectionsPage",
+      "Collections",
+      "Organize your API requests."
+    ],
+
+    generator: [
+      "generatorPage",
+      "Code Generator",
+      "Generate code from your API request."
+    ],
+
+    settings: [
+      "settingsPage",
+      "Settings",
+      "Customize your ReqGen workspace."
+    ]
+
+  };
 
 
-    $("pageTitle").textContent =
-      "API Request Tester";
+  const info =
+    pageMap[page];
+
+  if (!info) return;
 
 
-    $("pageSubtitle").textContent =
-      "Build, test and generate API requests.";
-  }
+  $(info[0])
+    ?.classList.add("active");
+
+
+  $("pageTitle").textContent =
+    info[1];
+
+  $("pageSubtitle").textContent =
+    info[2];
+
+
+  const nav =
+    document.querySelector(
+      `[data-page="${page}"]`
+    );
+
+  nav?.classList.add("active");
 
 
   if (page === "history") {
-
-    $("historyPage")
-      .classList.add("active");
-
-    document
-      .querySelector(
-        '[data-page="history"]'
-      )
-      .classList.add("active");
-
-
-    $("pageTitle").textContent =
-      "Request History";
-
-
-    $("pageSubtitle").textContent =
-      "Your recently generated and tested requests.";
-
-
     renderHistory();
   }
 
-
   if (page === "saved") {
-
-    $("savedPage")
-      .classList.add("active");
-
-    document
-      .querySelector(
-        '[data-page="saved"]'
-      )
-      .classList.add("active");
-
-
-    $("pageTitle").textContent =
-      "Saved Requests";
-
-
-    $("pageSubtitle").textContent =
-      "Your frequently used API requests.";
-
-
     renderSaved();
+  }
+
+  if (page === "collections") {
+    renderCollections();
   }
 
 
@@ -1185,9 +2094,9 @@ function openPage(page) {
 }
 
 
-/* =========================================
+/* =========================================================
    NEW REQUEST
-========================================= */
+========================================================= */
 
 function newRequest() {
 
@@ -1197,23 +2106,33 @@ function newRequest() {
   $("url").value =
     "";
 
-  $("requestBody").value =
+  $("paramsContainer").innerHTML =
     "";
 
+  $("headersContainer").innerHTML =
+    "";
 
-  $("headersContainer")
-    .innerHTML = "";
-
+  $("requestBody").value =
+    "";
 
   addHeader(
     "Content-Type",
     "application/json"
   );
 
+  addParam();
+
+  if ($("authType")) {
+
+    $("authType").value =
+      "none";
+
+    updateAuthUI();
+  }
+
 
   currentRequest =
     null;
-
 
   currentLanguage =
     "javascript";
@@ -1233,13 +2152,19 @@ function newRequest() {
     );
 
 
-  $("generatedCode").textContent =
-    "// Build a request to generate code.";
-
-
   $("codeLanguage").textContent =
     "JavaScript";
 
+  $("codeFileName").textContent =
+    "request.js";
+
+
+  $("generatedCode").textContent =
+    "// Build a request to generate code.";
+
+  updateLineNumbers(
+    "// Build a request to generate code."
+  );
 
   clearResponse();
 
@@ -1247,9 +2172,106 @@ function newRequest() {
 }
 
 
-/* =========================================
+/* =========================================================
+   FORMAT BYTES
+========================================================= */
+
+function formatBytes(bytes) {
+
+  if (!bytes) return "0 B";
+
+  const units = [
+    "B",
+    "KB",
+    "MB",
+    "GB"
+  ];
+
+  const index =
+    Math.floor(
+      Math.log(bytes) /
+      Math.log(1024)
+    );
+
+  return (
+    Math.round(
+      (
+        bytes /
+        Math.pow(1024, index)
+      ) * 100
+    ) / 100
+  ) +
+  " " +
+  units[index];
+}
+
+
+/* =========================================================
+   REQUEST TABS
+========================================================= */
+
+document
+  .querySelectorAll(".request-tab")
+  .forEach(
+    (tab) => {
+
+      tab.addEventListener(
+        "click",
+        () => {
+
+          document
+            .querySelectorAll(
+              ".request-tab"
+            )
+            .forEach(
+              (item) => {
+                item.classList.remove(
+                  "active"
+                );
+              }
+            );
+
+
+          document
+            .querySelectorAll(
+              ".request-tab-content"
+            )
+            .forEach(
+              (item) => {
+                item.classList.remove(
+                  "active"
+                );
+              }
+            );
+
+
+          tab.classList.add(
+            "active"
+          );
+
+
+          const target =
+            tab.dataset.requestTab;
+
+
+          const panel =
+            document.getElementById(
+              `${target}Panel`
+            );
+
+
+          panel?.classList.add(
+            "active"
+          );
+        }
+      );
+    }
+  );
+
+
+/* =========================================================
    RESPONSE TABS
-========================================= */
+========================================================= */
 
 document
   .querySelectorAll(".response-tab")
@@ -1266,7 +2288,6 @@ document
             )
             .forEach(
               (item) => {
-
                 item.classList.remove(
                   "active"
                 );
@@ -1280,7 +2301,6 @@ document
             )
             .forEach(
               (item) => {
-
                 item.classList.remove(
                   "active"
                 );
@@ -1310,16 +2330,15 @@ document
                 "active"
               );
           }
-
         }
       );
     }
   );
 
 
-/* =========================================
+/* =========================================================
    CODE TABS
-========================================= */
+========================================================= */
 
 document
   .querySelectorAll(".code-tab")
@@ -1333,25 +2352,21 @@ document
           currentLanguage =
             tab.dataset.language;
 
-
           document
             .querySelectorAll(
               ".code-tab"
             )
             .forEach(
               (item) => {
-
                 item.classList.remove(
                   "active"
                 );
               }
             );
 
-
           tab.classList.add(
             "active"
           );
-
 
           showGeneratedCode();
         }
@@ -1360,172 +2375,103 @@ document
   );
 
 
-/* =========================================
-   COPY CODE
-========================================= */
+/* =========================================================
+   AUTH
+========================================================= */
 
-$("copyCodeBtn")
-  .addEventListener(
-    "click",
-    async () => {
-
-      const code =
-        $("generatedCode")
-          .textContent;
+$("authType")?.addEventListener(
+  "change",
+  updateAuthUI
+);
 
 
-      if (
-        !code ||
-        code.startsWith("// Build")
-      ) {
+/* =========================================================
+   ADD PARAM
+========================================================= */
 
-        return;
-      }
-
-
-      try {
-
-        await navigator.clipboard
-          .writeText(code);
+$("addParamBtn")?.addEventListener(
+  "click",
+  () => {
+    addParam();
+  }
+);
 
 
-        const button =
-          $("copyCodeBtn");
-
-        const old =
-          button.textContent;
-
-
-        button.textContent =
-          "Copied!";
-
-
-        setTimeout(
-          () => {
-
-            button.textContent =
-              old;
-
-          },
-          1200
-        );
-
-      } catch {
-
-        alert(
-          "Unable to copy code."
-        );
-      }
-    }
-  );
-
-
-/* =========================================
-   COPY RESPONSE
-========================================= */
-
-$("copyResponseBtn")
-  .addEventListener(
-    "click",
-    async () => {
-
-      const response =
-        $("responseBody")
-          .textContent;
-
-
-      if (!response) {
-        return;
-      }
-
-
-      try {
-
-        await navigator.clipboard
-          .writeText(response);
-
-
-        const button =
-          $("copyResponseBtn");
-
-        const old =
-          button.textContent;
-
-
-        button.textContent =
-          "Copied!";
-
-
-        setTimeout(
-          () => {
-
-            button.textContent =
-              old;
-
-          },
-          1200
-        );
-
-      } catch {
-
-        alert(
-          "Unable to copy response."
-        );
-      }
-    }
-  );
-
-
-/* =========================================
+/* =========================================================
    ADD HEADER
-========================================= */
+========================================================= */
 
-$("addHeaderBtn")
-  .addEventListener(
-    "click",
-    () => {
-
-      addHeader();
-    }
-  );
+$("addHeaderBtn")?.addEventListener(
+  "click",
+  () => {
+    addHeader();
+  }
+);
 
 
-/* =========================================
+/* =========================================================
+   FORMAT JSON
+========================================================= */
+
+$("formatBodyBtn")?.addEventListener(
+  "click",
+  formatJSON
+);
+
+
+/* =========================================================
    SEND
-========================================= */
+========================================================= */
 
-$("sendRequestBtn")
-  .addEventListener(
-    "click",
-    sendRequest
-  );
+$("sendRequestBtn")?.addEventListener(
+  "click",
+  sendRequest
+);
 
 
-/* =========================================
+/* =========================================================
    SAVE
-========================================= */
+========================================================= */
 
-$("saveRequestBtn")
-  .addEventListener(
-    "click",
-    saveRequest
-  );
+$("saveRequestBtn")?.addEventListener(
+  "click",
+  saveRequest
+);
 
 
-/* =========================================
+/* =========================================================
+   COPY CODE
+========================================================= */
+
+$("copyCodeBtn")?.addEventListener(
+  "click",
+  copyCode
+);
+
+
+/* =========================================================
+   COPY RESPONSE
+========================================================= */
+
+$("copyResponseBtn")?.addEventListener(
+  "click",
+  copyResponse
+);
+
+
+/* =========================================================
    NEW REQUEST
-========================================= */
+========================================================= */
 
-$("newRequestBtn")
-  .addEventListener(
-    "click",
-    newRequest
-  );
+$("newRequestBtn")?.addEventListener(
+  "click",
+  newRequest
+);
 
 
-/* =========================================
+/* =========================================================
    NAVIGATION
-========================================= */
+========================================================= */
 
 document
   .querySelectorAll(".nav-item")
@@ -1545,271 +2491,314 @@ document
   );
 
 
-/* =========================================
+/* =========================================================
    HISTORY EVENTS
-========================================= */
+========================================================= */
 
-$("historyList")
-  .addEventListener(
-    "click",
-    (event) => {
+$("historyList")?.addEventListener(
+  "click",
+  (event) => {
 
-      const deleteButton =
-        event.target.closest(
-          "[data-history-delete]"
+    const deleteButton =
+      event.target.closest(
+        "[data-history-delete]"
+      );
+
+
+    if (deleteButton) {
+
+      const index =
+        Number(
+          deleteButton.dataset
+            .historyDelete
         );
 
 
-      if (deleteButton) {
-
-        const index =
-          Number(
-            deleteButton.dataset
-              .historyDelete
-          );
-
-
-        historyData.splice(
-          index,
-          1
-        );
-
-
-        saveStorage();
-
-        renderHistory();
-
-        return;
-      }
-
-
-      const item =
-        event.target.closest(
-          "[data-history-index]"
-        );
-
-
-      if (item) {
-
-        const index =
-          Number(
-            item.dataset
-              .historyIndex
-          );
-
-
-        loadRequest(
-          historyData[index]
-        );
-      }
-    }
-  );
-
-
-/* =========================================
-   SAVED EVENTS
-========================================= */
-
-$("savedList")
-  .addEventListener(
-    "click",
-    (event) => {
-
-      const deleteButton =
-        event.target.closest(
-          "[data-saved-delete]"
-        );
-
-
-      if (deleteButton) {
-
-        const index =
-          Number(
-            deleteButton.dataset
-              .savedDelete
-          );
-
-
-        savedData.splice(
-          index,
-          1
-        );
-
-
-        saveStorage();
-
-        renderSaved();
-
-        return;
-      }
-
-
-      const item =
-        event.target.closest(
-          "[data-saved-index]"
-        );
-
-
-      if (item) {
-
-        const index =
-          Number(
-            item.dataset
-              .savedIndex
-          );
-
-
-        loadRequest(
-          savedData[index]
-        );
-      }
-    }
-  );
-
-
-/* =========================================
-   CLEAR HISTORY
-========================================= */
-
-$("clearHistoryBtn")
-  .addEventListener(
-    "click",
-    () => {
-
-      if (
-        !confirm(
-          "Clear all request history?"
-        )
-      ) {
-        return;
-      }
-
-
-      historyData = [];
+      historyData.splice(
+        index,
+        1
+      );
 
       saveStorage();
 
       renderHistory();
+
+      return;
     }
-  );
 
 
-/* =========================================
-   CLEAR SAVED
-========================================= */
-
-$("clearSavedBtn")
-  .addEventListener(
-    "click",
-    () => {
-
-      if (
-        !confirm(
-          "Delete all saved requests?"
-        )
-      ) {
-        return;
-      }
+    const item =
+      event.target.closest(
+        "[data-history-index]"
+      );
 
 
-      savedData = [];
+    if (item) {
+
+      const index =
+        Number(
+          item.dataset
+            .historyIndex
+        );
+
+
+      loadRequest(
+        historyData[index]
+      );
+    }
+  }
+);
+
+
+/* =========================================================
+   SAVED EVENTS
+========================================================= */
+
+$("savedList")?.addEventListener(
+  "click",
+  (event) => {
+
+    const deleteButton =
+      event.target.closest(
+        "[data-saved-delete]"
+      );
+
+
+    if (deleteButton) {
+
+      const index =
+        Number(
+          deleteButton.dataset
+            .savedDelete
+        );
+
+
+      savedData.splice(
+        index,
+        1
+      );
 
       saveStorage();
 
       renderSaved();
+
+      return;
     }
-  );
 
 
-/* =========================================
-   MOBILE SIDEBAR
-========================================= */
+    const item =
+      event.target.closest(
+        "[data-saved-index]"
+      );
+
+
+    if (item) {
+
+      const index =
+        Number(
+          item.dataset
+            .savedIndex
+        );
+
+
+      loadRequest(
+        savedData[index]
+      );
+    }
+  }
+);
+
+
+/* =========================================================
+   COLLECTIONS
+========================================================= */
+
+$("newCollectionBtn")?.addEventListener(
+  "click",
+  createCollection
+);
+
+
+/* =========================================================
+   CLEAR HISTORY
+========================================================= */
+
+$("clearHistoryBtn")?.addEventListener(
+  "click",
+  () => {
+
+    if (
+      !confirm(
+        "Clear all request history?"
+      )
+    ) {
+      return;
+    }
+
+    historyData = [];
+
+    saveStorage();
+
+    renderHistory();
+  }
+);
+
+
+/* =========================================================
+   CLEAR SAVED
+========================================================= */
+
+$("clearSavedBtn")?.addEventListener(
+  "click",
+  () => {
+
+    if (
+      !confirm(
+        "Delete all saved requests?"
+      )
+    ) {
+      return;
+    }
+
+    savedData = [];
+
+    saveStorage();
+
+    renderSaved();
+  }
+);
+
+
+/* =========================================================
+   OPEN BUILDER
+========================================================= */
+
+$("openBuilderBtn")?.addEventListener(
+  "click",
+  () => {
+    openPage("builder");
+  }
+);
+
+
+/* =========================================================
+   MOBILE MENU
+========================================================= */
 
 function closeMobileSidebar() {
 
-  const sidebar =
-    document.querySelector(
-      ".sidebar"
-    );
+  $("sidebar")
+    ?.classList.remove("open");
 
-  const overlay =
-    $("sidebarOverlay");
-
-
-  sidebar.classList.remove(
-    "open"
-  );
-
-  overlay.classList.remove(
-    "active"
-  );
+  $("sidebarOverlay")
+    ?.classList.remove("active");
 }
 
 
-$("mobileMenu")
-  .addEventListener(
-    "click",
-    () => {
+$("mobileMenu")?.addEventListener(
+  "click",
+  () => {
 
-      const sidebar =
-        document.querySelector(
-          ".sidebar"
-        );
+    $("sidebar")
+      ?.classList.toggle("open");
 
-      const overlay =
-        $("sidebarOverlay");
+    $("sidebarOverlay")
+      ?.classList.toggle("active");
+  }
+);
 
 
-      sidebar.classList.toggle(
-        "open"
-      );
+$("sidebarOverlay")?.addEventListener(
+  "click",
+  closeMobileSidebar
+);
 
-      overlay.classList.toggle(
-        "active"
-      );
+
+/* =========================================================
+   URL ENTER
+========================================================= */
+
+$("url")?.addEventListener(
+  "keydown",
+  (event) => {
+
+    if (
+      event.key === "Enter"
+    ) {
+
+      sendRequest();
     }
-  );
+  }
+);
 
 
-$("sidebarOverlay")
-  .addEventListener(
-    "click",
-    closeMobileSidebar
-  );
+/* =========================================================
+   SETTINGS
+========================================================= */
+
+$("syntaxHighlighting")?.addEventListener(
+  "change",
+  (event) => {
+
+    settings.syntaxHighlighting =
+      event.target.checked;
+
+    saveStorage();
+
+    showGeneratedCode();
+  }
+);
 
 
-/* =========================================
-   URL ENTER KEY
-========================================= */
+$("autoFormat")?.addEventListener(
+  "change",
+  (event) => {
 
-$("url")
-  .addEventListener(
-    "keydown",
-    (event) => {
+    settings.autoFormat =
+      event.target.checked;
 
-      if (
-        event.key === "Enter"
-      ) {
-
-        sendRequest();
-      }
-    }
-  );
+    saveStorage();
+  }
+);
 
 
-/* =========================================
+$("saveHistory")?.addEventListener(
+  "change",
+  (event) => {
+
+    settings.saveHistory =
+      event.target.checked;
+
+    saveStorage();
+  }
+);
+
+
+/* =========================================================
    INITIALIZE
-========================================= */
+========================================================= */
 
 function initialize() {
 
   /*
-    Default header
+    Default Params
   */
 
   if (
-    $("headersContainer")
-      .children.length === 0
+    $("paramsContainer") &&
+    !$("paramsContainer").children.length
+  ) {
+    addParam();
+  }
+
+
+  /*
+    Default Headers
+  */
+
+  if (
+    $("headersContainer") &&
+    !$("headersContainer").children.length
   ) {
 
     addHeader(
@@ -1819,11 +2808,51 @@ function initialize() {
   }
 
 
+  /*
+    Settings
+  */
+
+  if (
+    $("syntaxHighlighting") &&
+    settings.syntaxHighlighting !== undefined
+  ) {
+
+    $("syntaxHighlighting").checked =
+      settings.syntaxHighlighting;
+  }
+
+
+  if (
+    $("autoFormat") &&
+    settings.autoFormat !== undefined
+  ) {
+
+    $("autoFormat").checked =
+      settings.autoFormat;
+  }
+
+
+  if (
+    $("saveHistory") &&
+    settings.saveHistory !== undefined
+  ) {
+
+    $("saveHistory").checked =
+      settings.saveHistory;
+  }
+
+
+  updateAuthUI();
+
   renderHistory();
 
   renderSaved();
 
+  renderCollections();
+
   clearResponse();
+
+  showGeneratedCode();
 }
 
 
