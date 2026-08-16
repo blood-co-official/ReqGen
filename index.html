@@ -8,7 +8,7 @@
 
   <meta
     name="description"
-    content="ReqGen — Build API requests, test APIs and generate ready-to-use code."
+    content="ReqGen — Build API requests and generate ready-to-use code."
   >
 
   <link rel="stylesheet" href="style.css">
@@ -16,205 +16,266 @@
 
 <body>
 
-  <div class="app">
+<div class="app">
 
-    <!-- ================================
-         SIDEBAR
-    ================================= -->
+  <!-- ================= SIDEBAR ================= -->
 
-    <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
 
-      <div class="brand">
-        <div class="brand-logo">RG</div>
+    <div class="brand">
+      <div class="brand-logo">RG</div>
+
+      <div>
+        <h1>ReqGen</h1>
+        <span>API DEVELOPER TOOL</span>
+      </div>
+    </div>
+
+    <div class="sidebar-title">WORKSPACE</div>
+
+    <nav>
+
+      <button
+        class="nav-item active"
+        data-page="builder"
+      >
+        <span>⚡</span>
+        Request Builder
+      </button>
+
+      <button
+        class="nav-item"
+        data-page="history"
+      >
+        <span>↺</span>
+        History
+      </button>
+
+      <button
+        class="nav-item"
+        data-page="saved"
+      >
+        <span>★</span>
+        Saved Requests
+      </button>
+
+      <button
+        class="nav-item"
+        data-page="collections"
+      >
+        <span>▣</span>
+        Collections
+      </button>
+
+    </nav>
+
+    <div class="sidebar-title">TOOLS</div>
+
+    <nav>
+
+      <button
+        class="nav-item"
+        data-page="generator"
+      >
+        <span>&lt;/&gt;</span>
+        Code Generator
+      </button>
+
+      <button
+        class="nav-item"
+        data-page="settings"
+      >
+        <span>⚙</span>
+        Settings
+      </button>
+
+    </nav>
+
+    <div class="sidebar-footer">
+      ReqGen V4<br>
+      Built by <strong>BLOOD-CO</strong>
+    </div>
+
+  </aside>
+
+
+  <div
+    class="sidebar-overlay"
+    id="sidebarOverlay"
+  ></div>
+
+
+  <!-- ================= MAIN ================= -->
+
+  <main class="main">
+
+    <!-- TOPBAR -->
+
+    <header class="topbar">
+
+      <div class="topbar-left">
+
+        <button
+          class="mobile-menu"
+          id="mobileMenu"
+        >
+          ☰
+        </button>
 
         <div>
-          <h1>ReqGen</h1>
-          <span>DEVELOPER TOOL</span>
+          <h2 id="pageTitle">
+            API Request Builder
+          </h2>
+
+          <p id="pageSubtitle">
+            Build, test and generate API requests.
+          </p>
         </div>
-      </div>
-
-      <div class="sidebar-title">
-        WORKSPACE
-      </div>
-
-      <nav>
-
-        <button
-          class="nav-item active"
-          data-page="builder"
-        >
-          <span>⌘</span>
-          Request Builder
-        </button>
-
-        <button
-          class="nav-item"
-          data-page="history"
-        >
-          <span>◷</span>
-          History
-        </button>
-
-        <button
-          class="nav-item"
-          data-page="saved"
-        >
-          <span>★</span>
-          Saved Requests
-        </button>
-
-      </nav>
-
-      <div class="sidebar-footer">
-
-        <p>ReqGen V3.0</p>
-
-        <p>
-          Build Requests.
-          Generate Code.
-        </p>
-
-        <p>
-          Production by
-          <strong>BLOOD-CO</strong>
-        </p>
 
       </div>
 
-    </aside>
+      <button
+        class="primary-btn"
+        id="newRequestBtn"
+      >
+        + New Request
+      </button>
+
+    </header>
 
 
-    <!-- MOBILE OVERLAY -->
+    <!-- ==================================================
+         BUILDER PAGE
+    ================================================== -->
 
-    <div
-      class="sidebar-overlay"
-      id="sidebarOverlay"
-    ></div>
+    <section
+      class="page active"
+      id="builderPage"
+    >
 
+      <div class="request-response-grid">
 
-    <!-- ================================
-         MAIN
-    ================================= -->
+        <!-- ================= REQUEST PANEL ================= -->
 
-    <main class="main">
+        <section class="panel">
 
-      <!-- TOP BAR -->
+          <div class="panel-header">
 
-      <header class="topbar">
+            <div>
+              <h3>Request</h3>
+              <p>Configure your API request</p>
+            </div>
 
-        <div class="topbar-left">
-
-          <button
-            class="mobile-menu"
-            id="mobileMenu"
-          >
-            ☰
-          </button>
-
-          <div>
-
-            <h2 id="pageTitle">
-              API Request Tester
-            </h2>
-
-            <p id="pageSubtitle">
-              Build, test and generate API requests.
-            </p>
+            <span class="status-badge">
+              V4
+            </span>
 
           </div>
 
-        </div>
+
+          <!-- METHOD + URL -->
+
+          <div class="request-url-row">
+
+            <select
+              id="method"
+              class="method-select"
+            >
+              <option>GET</option>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>PATCH</option>
+              <option>DELETE</option>
+              <option>HEAD</option>
+              <option>OPTIONS</option>
+            </select>
+
+            <input
+              id="url"
+              class="url-input"
+              type="url"
+              placeholder="https://api.example.com/users"
+              autocomplete="off"
+            >
+
+          </div>
 
 
-        <button
-          class="primary-btn"
-          id="newRequestBtn"
-        >
-          + New Request
-        </button>
+          <!-- REQUEST TABS -->
 
-      </header>
+          <div class="request-tabs">
+
+            <button
+              class="request-tab active"
+              data-request-tab="params"
+            >
+              Params
+            </button>
+
+            <button
+              class="request-tab"
+              data-request-tab="headers"
+            >
+              Headers
+            </button>
+
+            <button
+              class="request-tab"
+              data-request-tab="auth"
+            >
+              Auth
+            </button>
+
+            <button
+              class="request-tab"
+              data-request-tab="body"
+            >
+              Body
+            </button>
+
+          </div>
 
 
-      <!-- ================================
-           BUILDER PAGE
-      ================================= -->
+          <!-- ================= PARAMS ================= -->
 
-      <section
-        class="page active"
-        id="builderPage"
-      >
+          <div
+            class="request-tab-content active"
+            id="paramsPanel"
+          >
 
-        <div class="request-response-grid">
+            <div class="request-section">
 
+              <div class="section-heading">
 
-          <!-- ============================
-               REQUEST PANEL
-          ============================= -->
+                <h4>
+                  Query Parameters
+                </h4>
 
-          <div class="panel request-panel">
+                <button
+                  class="small-btn"
+                  id="addParamBtn"
+                >
+                  + Add
+                </button>
 
-            <div class="panel-header">
-
-              <div>
-                <h3>Request</h3>
-
-                <p>
-                  Configure your API request.
-                </p>
               </div>
 
-              <span class="status-badge">
-                READY
-              </span>
+              <div
+                class="params-container"
+                id="paramsContainer"
+              ></div>
 
             </div>
 
-
-            <!-- METHOD + URL -->
-
-            <div class="request-url-row">
-
-              <select
-                id="method"
-                class="method-select"
-              >
-
-                <option value="GET">
-                  GET
-                </option>
-
-                <option value="POST">
-                  POST
-                </option>
-
-                <option value="PUT">
-                  PUT
-                </option>
-
-                <option value="PATCH">
-                  PATCH
-                </option>
-
-                <option value="DELETE">
-                  DELETE
-                </option>
-
-              </select>
+          </div>
 
 
-              <input
-                type="url"
-                id="url"
-                class="url-input"
-                placeholder="https://api.example.com/users"
-                autocomplete="off"
-              >
+          <!-- ================= HEADERS ================= -->
 
-            </div>
-
-
-            <!-- HEADERS -->
+          <div
+            class="request-tab-content"
+            id="headersPanel"
+          >
 
             <div class="request-section">
 
@@ -225,306 +286,427 @@
                 </h4>
 
                 <button
-                  type="button"
                   class="small-btn"
                   id="addHeaderBtn"
                 >
-                  + Add Header
+                  + Add
                 </button>
 
               </div>
 
+              <div
+                class="headers-container"
+                id="headersContainer"
+              ></div>
+
+            </div>
+
+          </div>
+
+
+          <!-- ================= AUTH ================= -->
+
+          <div
+            class="request-tab-content"
+            id="authPanel"
+          >
+
+            <div class="request-section">
+
+              <div class="section-heading">
+                <h4>Authorization</h4>
+              </div>
+
+              <select
+                id="authType"
+                class="auth-select"
+              >
+                <option value="none">
+                  No Auth
+                </option>
+
+                <option value="bearer">
+                  Bearer Token
+                </option>
+
+                <option value="basic">
+                  Basic Auth
+                </option>
+
+                <option value="apikey">
+                  API Key
+                </option>
+              </select>
+
+
+              <!-- BEARER -->
 
               <div
-                id="headersContainer"
-                class="headers-container"
+                class="auth-fields"
+                id="bearerFields"
               >
 
-                <!-- Header rows added by JS -->
+                <input
+                  id="bearerToken"
+                  class="auth-input"
+                  type="password"
+                  placeholder="Bearer token"
+                >
+
+              </div>
+
+
+              <!-- BASIC -->
+
+              <div
+                class="auth-fields"
+                id="basicFields"
+              >
+
+                <input
+                  id="basicUsername"
+                  class="auth-input"
+                  placeholder="Username"
+                >
+
+                <input
+                  id="basicPassword"
+                  class="auth-input"
+                  type="password"
+                  placeholder="Password"
+                >
+
+              </div>
+
+
+              <!-- API KEY -->
+
+              <div
+                class="auth-fields"
+                id="apiKeyFields"
+              >
+
+                <input
+                  id="apiKeyName"
+                  class="auth-input"
+                  placeholder="Key name"
+                >
+
+                <input
+                  id="apiKeyValue"
+                  class="auth-input"
+                  type="password"
+                  placeholder="API key value"
+                >
+
+                <select
+                  id="apiKeyLocation"
+                  class="auth-select"
+                >
+                  <option value="header">
+                    Header
+                  </option>
+
+                  <option value="query">
+                    Query Parameter
+                  </option>
+                </select>
 
               </div>
 
             </div>
 
+          </div>
 
-            <!-- BODY -->
+
+          <!-- ================= BODY ================= -->
+
+          <div
+            class="request-tab-content"
+            id="bodyPanel"
+          >
 
             <div class="request-section">
 
               <div class="section-heading">
 
                 <h4>
-                  JSON Body
+                  Request Body
                 </h4>
 
-              </div>
+                <button
+                  class="small-btn"
+                  id="formatBodyBtn"
+                >
+                  Format JSON
+                </button>
 
+              </div>
 
               <textarea
                 id="requestBody"
                 class="body-input"
                 placeholder='{
-  "title": "ReqGen V3",
-  "body": "Testing API request",
-  "userId": 1
+  "name": "ReqGen",
+  "version": "4.0"
 }'
               ></textarea>
 
             </div>
 
-
-            <!-- REQUEST ACTIONS -->
-
-            <div class="request-actions">
-
-              <button
-                type="button"
-                class="secondary-btn"
-                id="saveRequestBtn"
-              >
-                ★ Save Request
-              </button>
-
-
-              <button
-                type="button"
-                class="primary-btn send-btn"
-                id="sendRequestBtn"
-              >
-                ⚡ Send Request
-              </button>
-
-            </div>
-
           </div>
 
 
+          <!-- ACTIONS -->
 
-          <!-- ============================
-               RESPONSE PANEL
-          ============================= -->
+          <div class="request-actions">
 
-          <div class="panel response-panel">
-
-            <div class="panel-header">
-
-              <div>
-                <h3>
-                  Response
-                </h3>
-
-                <p>
-                  API response will appear here.
-                </p>
-              </div>
-
-              <span
-                class="response-status"
-                id="responseStatus"
-              >
-                NO RESPONSE
-              </span>
-
-            </div>
-
-
-            <!-- RESPONSE INFO -->
-
-            <div
-              class="response-info"
-              id="responseInfo"
+            <button
+              class="secondary-btn"
+              id="saveRequestBtn"
             >
+              ★ Save
+            </button>
 
-              <div class="response-stat">
-
-                <span>
-                  Status
-                </span>
-
-                <strong id="statusCode">
-                  —
-                </strong>
-
-              </div>
-
-
-              <div class="response-stat">
-
-                <span>
-                  Time
-                </span>
-
-                <strong id="responseTime">
-                  —
-                </strong>
-
-              </div>
-
-
-              <div class="response-stat">
-
-                <span>
-                  Size
-                </span>
-
-                <strong id="responseSize">
-                  —
-                </strong>
-
-              </div>
-
-            </div>
-
-
-            <!-- RESPONSE TABS -->
-
-            <div class="response-tabs">
-
-              <button
-                class="response-tab active"
-                data-response-tab="body"
-              >
-                Body
-              </button>
-
-              <button
-                class="response-tab"
-                data-response-tab="headers"
-              >
-                Headers
-              </button>
-
-            </div>
-
-
-            <!-- RESPONSE BODY -->
-
-            <div
-              class="response-content active"
-              id="responseBodyPanel"
+            <button
+              class="primary-btn send-btn"
+              id="sendRequestBtn"
             >
-
-              <div class="response-toolbar">
-
-                <span>
-                  JSON Response
-                </span>
-
-                <button
-                  type="button"
-                  class="small-btn"
-                  id="copyResponseBtn"
-                >
-                  Copy
-                </button>
-
-              </div>
-
-
-              <pre
-                id="responseBody"
-                class="response-output"
-              >// Send a request to see the response.</pre>
-
-            </div>
-
-
-            <!-- RESPONSE HEADERS -->
-
-            <div
-              class="response-content"
-              id="responseHeadersPanel"
-            >
-
-              <pre
-                id="responseHeaders"
-                class="response-output"
-              >// Response headers will appear here.</pre>
-
-            </div>
-
+              ⚡ Send Request
+            </button>
 
           </div>
 
-        </div>
+        </section>
 
 
+        <!-- ================= RESPONSE PANEL ================= -->
 
-        <!-- ================================
-             CODE GENERATOR
-        ================================= -->
-
-        <div class="panel code-panel">
+        <section class="panel">
 
           <div class="panel-header">
 
             <div>
-
-              <h3>
-                Generated Code
-              </h3>
-
-              <p>
-                Ready-to-use snippets for your request.
-              </p>
-
+              <h3>Response</h3>
+              <p>API response details</p>
             </div>
 
-            <span class="status-badge">
-              CODE
+            <span
+              class="response-status"
+              id="responseStatus"
+            >
+              NO RESPONSE
             </span>
 
           </div>
 
 
-          <div class="code-tabs">
+          <!-- RESPONSE STATS -->
+
+          <div class="response-info">
+
+            <div class="response-stat">
+              <span>Status</span>
+              <strong id="statusCode">—</strong>
+            </div>
+
+            <div class="response-stat">
+              <span>Time</span>
+              <strong id="responseTime">—</strong>
+            </div>
+
+            <div class="response-stat">
+              <span>Size</span>
+              <strong id="responseSize">—</strong>
+            </div>
+
+          </div>
+
+
+          <!-- RESPONSE TABS -->
+
+          <div class="response-tabs">
 
             <button
-              class="code-tab active"
-              data-language="javascript"
+              class="response-tab active"
+              data-response-tab="body"
             >
-              JavaScript
+              Body
             </button>
 
             <button
-              class="code-tab"
-              data-language="python"
+              class="response-tab"
+              data-response-tab="headers"
             >
-              Python
-            </button>
-
-            <button
-              class="code-tab"
-              data-language="curl"
-            >
-              cURL
+              Headers
             </button>
 
           </div>
 
 
-          <div class="code-output">
+          <!-- BODY -->
 
-            <div class="code-toolbar">
+          <div
+            class="response-content active"
+            id="responseBodyPanel"
+          >
 
-              <span id="codeLanguage">
-                JavaScript
-              </span>
+            <div class="response-toolbar">
+
+              <span>JSON / RAW</span>
 
               <button
-                type="button"
                 class="small-btn"
-                id="copyCodeBtn"
+                id="copyResponseBtn"
               >
                 Copy
               </button>
 
             </div>
 
+            <pre
+              class="response-output"
+              id="responseBody"
+            >// Send a request to see the response.</pre>
+
+          </div>
+
+
+          <!-- HEADERS -->
+
+          <div
+            class="response-content"
+            id="responseHeadersPanel"
+          >
+
+            <div class="response-toolbar">
+              <span>RESPONSE HEADERS</span>
+            </div>
 
             <pre
+              class="response-output"
+              id="responseHeaders"
+            >// Response headers will appear here.</pre>
+
+          </div>
+
+        </section>
+
+      </div>
+
+
+      <!-- ==================================================
+           CODE GENERATOR
+      ================================================== -->
+
+      <section class="panel code-panel">
+
+        <div class="panel-header">
+
+          <div>
+            <h3>Generated Code</h3>
+
+            <p>
+              Ready-to-use code for your request
+            </p>
+          </div>
+
+          <span
+            class="status-badge"
+            id="codeLanguage"
+          >
+            JavaScript
+          </span>
+
+        </div>
+
+
+        <!-- LANGUAGE TABS -->
+
+        <div class="code-tabs">
+
+          <button
+            class="code-tab active"
+            data-language="javascript"
+          >
+            JavaScript
+          </button>
+
+          <button
+            class="code-tab"
+            data-language="python"
+          >
+            Python
+          </button>
+
+          <button
+            class="code-tab"
+            data-language="curl"
+          >
+            cURL
+          </button>
+
+          <button
+            class="code-tab"
+            data-language="java"
+          >
+            Java
+          </button>
+
+          <button
+            class="code-tab"
+            data-language="php"
+          >
+            PHP
+          </button>
+
+        </div>
+
+
+        <!-- CODE EDITOR -->
+
+        <div class="code-output">
+
+          <div class="code-toolbar">
+
+            <div class="code-toolbar-left">
+
+              <span class="code-dot"></span>
+              <span class="code-dot"></span>
+              <span class="code-dot"></span>
+
+              <span
+                id="codeFileName"
+              >
+                request.js
+              </span>
+
+            </div>
+
+            <button
+              class="small-btn"
+              id="copyCodeBtn"
+            >
+              Copy Code
+            </button>
+
+          </div>
+
+
+          <div class="code-editor">
+
+            <div
+              class="line-numbers"
+              id="lineNumbers"
+            >1</div>
+
+            <pre
+              class="highlighted-code"
+              id="highlightedCode"
+            ><code
               id="generatedCode"
-            >// Build a request to generate code.</pre>
+              class="language-javascript"
+            >// Build a request to generate code.</code></pre>
 
           </div>
 
@@ -532,121 +714,282 @@
 
       </section>
 
-
-
-      <!-- ================================
-           HISTORY PAGE
-      ================================= -->
-
-      <section
-        class="page"
-        id="historyPage"
-      >
-
-        <div class="page-heading">
-
-          <div>
-
-            <h2>
-              Request History
-            </h2>
-
-            <p>
-              Your recently generated and tested requests.
-            </p>
-
-          </div>
-
-
-          <button
-            class="danger-btn"
-            id="clearHistoryBtn"
-          >
-            Clear History
-          </button>
-
-        </div>
-
-
-        <div
-          class="request-list"
-          id="historyList"
-        ></div>
-
-      </section>
-
-
-
-      <!-- ================================
-           SAVED PAGE
-      ================================= -->
-
-      <section
-        class="page"
-        id="savedPage"
-      >
-
-        <div class="page-heading">
-
-          <div>
-
-            <h2>
-              Saved Requests
-            </h2>
-
-            <p>
-              Your frequently used API requests.
-            </p>
-
-          </div>
-
-
-          <button
-            class="danger-btn"
-            id="clearSavedBtn"
-          >
-            Clear Saved
-          </button>
-
-        </div>
-
-
-        <div
-          class="request-list"
-          id="savedList"
-        ></div>
-
-      </section>
-
-
-
-      <!-- ================================
-           FOOTER
-      ================================= -->
 
       <footer class="footer">
-
-        <p>
-          ReqGen V3.0
-        </p>
-
-        <p>
-          Build Requests. Generate Code.
-        </p>
-
-        <p>
-          Production by
-          <strong>BLOOD-CO</strong>
-        </p>
-
+        ReqGen V4 · Build Requests. Generate Code.
+        <br>
+        <strong>BLOOD-CO</strong>
       </footer>
 
-    </main>
-
-  </div>
+    </section>
 
 
-  <script src="script.js"></script>
+    <!-- ==================================================
+         HISTORY PAGE
+    ================================================== -->
+
+    <section
+      class="page"
+      id="historyPage"
+    >
+
+      <div class="page-heading">
+
+        <div>
+          <h2>Request History</h2>
+          <p>
+            Recently tested API requests.
+          </p>
+        </div>
+
+        <button
+          class="danger-btn"
+          id="clearHistoryBtn"
+        >
+          Clear History
+        </button>
+
+      </div>
+
+      <div
+        class="request-list"
+        id="historyList"
+      ></div>
+
+    </section>
+
+
+    <!-- ==================================================
+         SAVED PAGE
+    ================================================== -->
+
+    <section
+      class="page"
+      id="savedPage"
+    >
+
+      <div class="page-heading">
+
+        <div>
+          <h2>Saved Requests</h2>
+          <p>
+            Your frequently used requests.
+          </p>
+        </div>
+
+        <button
+          class="danger-btn"
+          id="clearSavedBtn"
+        >
+          Clear Saved
+        </button>
+
+      </div>
+
+      <div
+        class="request-list"
+        id="savedList"
+      ></div>
+
+    </section>
+
+
+    <!-- ==================================================
+         COLLECTIONS PAGE
+    ================================================== -->
+
+    <section
+      class="page"
+      id="collectionsPage"
+    >
+
+      <div class="page-heading">
+
+        <div>
+          <h2>Collections</h2>
+          <p>
+            Organize your API requests.
+          </p>
+        </div>
+
+        <button
+          class="primary-btn"
+          id="newCollectionBtn"
+        >
+          + New Collection
+        </button>
+
+      </div>
+
+      <div
+        class="collections-grid"
+        id="collectionsList"
+      ></div>
+
+    </section>
+
+
+    <!-- ==================================================
+         GENERATOR PAGE
+    ================================================== -->
+
+    <section
+      class="page"
+      id="generatorPage"
+    >
+
+      <div class="page-heading">
+
+        <div>
+          <h2>Code Generator</h2>
+
+          <p>
+            Generate code from your current API request.
+          </p>
+        </div>
+
+      </div>
+
+      <section class="panel">
+
+        <div class="generator-empty">
+
+          <div class="empty-icon">
+            &lt;/&gt;
+          </div>
+
+          <h3>
+            Build a request first
+          </h3>
+
+          <p>
+            Configure your request in the Request Builder
+            and generated code will appear automatically.
+          </p>
+
+          <button
+            class="primary-btn"
+            id="openBuilderBtn"
+          >
+            Open Request Builder
+          </button>
+
+        </div>
+
+      </section>
+
+    </section>
+
+
+    <!-- ==================================================
+         SETTINGS PAGE
+    ================================================== -->
+
+    <section
+      class="page"
+      id="settingsPage"
+    >
+
+      <div class="page-heading">
+
+        <div>
+          <h2>Settings</h2>
+
+          <p>
+            Customize your ReqGen workspace.
+          </p>
+        </div>
+
+      </div>
+
+
+      <section class="panel settings-panel">
+
+        <div class="setting-row">
+
+          <div>
+            <strong>
+              Syntax Highlighting
+            </strong>
+
+            <p>
+              Highlight generated code by language.
+            </p>
+          </div>
+
+          <label class="switch">
+            <input
+              type="checkbox"
+              id="syntaxHighlighting"
+              checked
+            >
+            <span></span>
+          </label>
+
+        </div>
+
+
+        <div class="setting-row">
+
+          <div>
+            <strong>
+              Auto Format JSON
+            </strong>
+
+            <p>
+              Automatically format JSON request bodies.
+            </p>
+          </div>
+
+          <label class="switch">
+            <input
+              type="checkbox"
+              id="autoFormat"
+              checked
+            >
+            <span></span>
+          </label>
+
+        </div>
+
+
+        <div class="setting-row">
+
+          <div>
+            <strong>
+              Save Request History
+            </strong>
+
+            <p>
+              Store recent requests locally in your browser.
+            </p>
+          </div>
+
+          <label class="switch">
+            <input
+              type="checkbox"
+              id="saveHistory"
+              checked
+            >
+            <span></span>
+          </label>
+
+        </div>
+
+      </section>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<!-- ==================================================
+     JAVASCRIPT
+================================================== -->
+
+<script src="script.js"></script>
 
 </body>
-</html>
+          </html>
